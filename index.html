@@ -934,15 +934,17 @@
       o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + dur);
     } catch (e) { /* ignore */ }
   }
+  // one second of white noise, generated once; each burst plays a random slice of it with a linear fade-out
+  let sfxNoise = null;
   function noise(dur, vol, hp) {
     const a = audio(); if (!a || !soundLvl) return;
     vol = (vol || 0.15) * soundGain();
     try {
-      const len = Math.floor(a.sampleRate * dur), b = a.createBuffer(1, len, a.sampleRate), d = b.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
-      const s = a.createBufferSource(), g = a.createGain(), f = a.createBiquadFilter();
-      s.buffer = b; f.type = 'lowpass'; f.frequency.value = hp || 3000; g.gain.value = vol;
-      s.connect(f); f.connect(g); g.connect(a.destination); s.start();
+      if (!sfxNoise) { sfxNoise = a.createBuffer(1, a.sampleRate, a.sampleRate); const d = sfxNoise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+      const s = a.createBufferSource(), g = a.createGain(), f = a.createBiquadFilter(), t = a.currentTime;
+      s.buffer = sfxNoise; s.loop = true; f.type = 'lowpass'; f.frequency.value = hp || 3000;
+      g.gain.setValueAtTime(vol, t); g.gain.linearRampToValueAtTime(0, t + dur);
+      s.connect(f); f.connect(g); g.connect(a.destination); s.start(t, Math.random() * 0.9); s.stop(t + dur);
     } catch (e) { /* ignore */ }
   }
 
