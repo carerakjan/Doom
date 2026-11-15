@@ -848,7 +848,12 @@
   const MAX_AMMO = { bullets: 200, shells: 50, rockets: 40, cells: 200, fuel: 200 };
 
   let state = 'title';           // title | play | complete | dead | victory
-  let paused = false, pausedAt = 0; // pause applies only while state === 'play'
+  let paused = false, pausedAt = 0;
+  // death / level-complete / victory screens ignore Enter and clicks for a moment, so a held fire button can't skip them
+  const SCREEN_GUARD = 0.6;
+  let screenAt = 0;
+  function showScreen(st) { state = st; screenAt = time; }
+  function screenReady() { return time - screenAt >= SCREEN_GUARD; } // pause applies only while state === 'play'
   let level = 1, L = null, theme = null, grid = null, size = 0;
   let player = null, enemies = [], corpses = [], pickups = [], balls = [], parts = [], decals = [], strikes = [], decor = [];
   let keyItem = null, hasKey = false, exitOpen = false, seen = null;
@@ -1142,13 +1147,14 @@
 
   function advanceMenu() {
     if (state === 'title') { titleStart(); return true; }
-    if (state === 'dead') { startLevel(level, true); return true; }
+    if (state === 'dead') { if (screenReady()) startLevel(level, true); return true; }
     if (state === 'complete') {
-      if (level >= MAX_LEVEL) { state = 'victory'; return true; }
+      if (!screenReady()) return true;
+      if (level >= MAX_LEVEL) { showScreen('victory'); return true; }
       player.hp = Math.min(100, player.hp + completeHeal());
       startLevel(level + 1, false); return true;
     }
-    if (state === 'victory') { state = 'title'; return true; }
+    if (state === 'victory') { if (screenReady()) state = 'title'; return true; }
     return false;
   }
   function completeHeal() { return Math.round(25 * DIFFS[diffIdx].heal); }
@@ -1241,7 +1247,7 @@
     if (state !== 'play' || shield > 0) return;
     player.hp -= Math.round(d); hurtFlash = 0.35; lastHurt = time; shake = Math.max(shake, 0.18);
     tone(110, 0.15, 'sawtooth', 0.08, 60);
-    if (player.hp <= 0) { player.hp = 0; state = 'dead'; tone(200, 0.8, 'sawtooth', 0.1, 40); }
+    if (player.hp <= 0) { player.hp = 0; showScreen('dead'); tone(200, 0.8, 'sawtooth', 0.1, 40); }
   }
   function killEnemy(e) {
     e.dead = true; killCount++;
@@ -1635,7 +1641,7 @@
     if (exitOpen && !wasOpen) { toast('ВИХІД ВІДКРИТО!', 3); tone(440, 0.4, 'triangle', 0.08, 880); }
     const de = Math.hypot(L.exit.x - player.x, L.exit.y - player.y);
     if (de < 0.7 && exitOpen) {
-      state = 'complete'; tone(523, 0.5, 'triangle', 0.1, 1046);
+      showScreen('complete'); tone(523, 0.5, 'triangle', 0.1, 1046);
       // save the next level right away, so closing the tab on this screen doesn't lose the level
       if (level >= MAX_LEVEL) { bestLevel = MAX_LEVEL; clearProgress(); }
       else { const s = JSON.parse(snap()); s.hp = Math.min(100, s.hp + completeHeal()); saveProgress(level + 1, s); }
@@ -2104,17 +2110,19 @@
       centerText('M звук · [ ] чутливість миші: ×' + sens, 202, 12, '#9b94a8');
     } else if (state === 'dead') {
       ctx.fillStyle = 'rgba(80,0,0,0.65)'; ctx.fillRect(0, 0, W, VH);
-      centerText('ВИ ЗАГИНУЛИ', 150, 40, '#ff5544'); centerText('Enter або клік: спробувати рівень знову', 190, 14, '#ddd');
+      centerText('ВИ ЗАГИНУЛИ', 150, 40, '#ff5544');
+      ctx.globalAlpha = screenReady() ? 1 : 0.35; centerText('Enter або клік: спробувати рівень знову', 190, 14, '#ddd'); ctx.globalAlpha = 1;
     } else if (state === 'complete') {
       ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(0, 0, W, VH);
       centerText('РІВЕНЬ ' + level + ' ПРОЙДЕНО', 110, 34, '#3ddc84');
       centerText('Вороги: ' + killCount + '/' + totalEnemies + '   Час: ' + Math.floor(levelTime / 60) + ':' + String(Math.floor(levelTime % 60)).padStart(2, '0'), 160, 16, '#ddd');
-      centerText(level >= MAX_LEVEL ? 'Enter: фінал' : 'Enter: наступний рівень (+' + Math.round(25 * DIFFS[diffIdx].heal) + ' здоров\'я)', 200, 14, '#ffd23f');
+      ctx.globalAlpha = screenReady() ? 1 : 0.35;
+      centerText(level >= MAX_LEVEL ? 'Enter: фінал' : 'Enter: наступний рівень (+' + completeHeal() + ' здоров\'я)', 200, 14, '#ffd23f'); ctx.globalAlpha = 1;
     } else if (state === 'victory') {
       ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(0, 0, W, H);
       centerText('ПЕРЕМОГА!', 130, 46, '#ffd23f');
       centerText('Ви пройшли всі ' + MAX_LEVEL + ' рівнів і зупинили Серце Безодні.', 180, 14, '#ddd');
-      centerText('Складність: ' + DIFFS[diffIdx].name + '. Enter: на головний екран', 220, 14, '#3ddc84');
+      ctx.globalAlpha = screenReady() ? 1 : 0.35; centerText('Складність: ' + DIFFS[diffIdx].name + '. Enter: на головний екран', 220, 14, '#3ddc84'); ctx.globalAlpha = 1;
     }
   }
 
