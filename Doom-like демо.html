@@ -985,6 +985,8 @@
       if (mode === 'off') { nextT = Math.max(nextT, a.currentTime + 0.1); return; }
       if (curMode !== mode) { curMode = mode; step = 0; nextT = a.currentTime + 0.1; }
       const sd = 60 / RF[curMode].bpm / 4;
+      // setInterval is throttled in background tabs; drop the missed steps instead of firing them all at once
+      if (nextT < a.currentTime) nextT = a.currentTime + 0.05;
       while (nextT < a.currentTime + 0.2) { playStep(step, nextT, sd); step++; nextT += sd; }
     }
     return { setMode(m) { mode = m; if (!a && AC) init(); }, init };
