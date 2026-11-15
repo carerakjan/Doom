@@ -458,12 +458,18 @@
     return o;
   }
   const TYPES = ['zombie', 'shotgunner', 'chaingunner', 'guard', 'imp', 'bull', 'ghost', 'medusa', 'skull', 'knight', 'lord', 'spider', 'skeleton', 'mancubus', 'spawner', 'necro', 'general', 'titan', 'heart', 'bat', 'ghoul', 'leaper', 'bomber', 'sniper', 'shield', 'frost', 'golem'];
+  // Monster textures are built lazily on first access (the full set used to block startup);
+  // genLevel touches every type a level can contain, so the cost lands on level load, not mid-fight.
   const MON_TEX = {};
-  for (const t of TYPES) {
+  function buildMonTex(t) {
     const a = sprUp(paintMonster(t, 0)), b = sprUp(paintMonster(t, 1)), at = sprUp(paintMonster(t, 2));
     const wa = finishTex128(a);
-    MON_TEX[t] = { walk: [wa, finishTex128(b)], atk: finishTex128(at), hurt: hurtTex(wa), dead: finishTex128(deadCanvas128(a)) };
+    return { walk: [wa, finishTex128(b)], atk: finishTex128(at), hurt: hurtTex(wa), dead: finishTex128(deadCanvas128(a)) };
   }
+  for (const t of TYPES) Object.defineProperty(MON_TEX, t, {
+    enumerable: true, configurable: true,
+    get() { const v = buildMonTex(t); Object.defineProperty(MON_TEX, t, { value: v, enumerable: true }); return v; },
+  });
 
   function paintItem(kind) {
     const c = mkCanvas(64, 64), g = c.getContext('2d');
@@ -770,6 +776,8 @@
     let bestA = 0, bestD = -1;
     for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283, d = rayDist(grid, size, start.x, start.y, a); if (d > bestD) { bestD = d; bestA = a; } }
     start.angle = bestA;
+    // pre-build textures for everything that can appear here: placed enemies, boss minions (pool) and spawned skulls
+    for (const t of new Set([...enemies.map(e => e.type), ...pool, 'skull'])) void MON_TEX[t];
     return { n, boss, size, grid, rooms, start, exit, key, objective, enemies, pickups, decor, mul, pool, theme: themeFor(n) };
   }
 
