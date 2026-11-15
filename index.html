@@ -1628,6 +1628,7 @@
   // ===================================================================
   // Rendering: world
   // ===================================================================
+  const sprRow = new Int32Array(VH);
   function renderWorld() {
     const T = theme, fog = T.fog, boost = lightBoost * 0.55;
     const dirX = Math.cos(player.angle), dirY = Math.sin(player.angle);
@@ -1718,11 +1719,14 @@
       const c0 = Math.max(0, Math.floor(left)), c1 = Math.min(W - 1, Math.floor(left + szw));
       const r0 = Math.max(0, Math.floor(top)), r1 = Math.min(VH - 1, Math.floor(bottom));
       const tex = s.tex, al = s.alpha === undefined ? 1 : s.alpha, TS = tex.length > 4096 ? 128 : 64;
+      // texture row offsets depend only on the screen row: compute them once per sprite, not per pixel
+      for (let row = r0; row <= r1; row++) sprRow[row] = clamp(((row - top) / szh * TS) | 0, 0, TS - 1) * TS;
+      const uK = TS / szw;
       for (let col = c0; col <= c1; col++) {
         if (tY >= zbuf[col]) continue;
-        const u = clamp(((col - left) / szw * TS) | 0, 0, TS - 1);
+        const u = clamp(((col - left) * uK) | 0, 0, TS - 1);
         for (let row = r0; row <= r1; row++) {
-          const v = clamp(((row - top) / szh * TS) | 0, 0, TS - 1), c = tex[v * TS + u];
+          const c = tex[sprRow[row] + u];
           if ((c >>> 24) < 60) continue;
           let r = Math.min(255, ((c & 255) * m + fr) >> 8), g = Math.min(255, (((c >> 8) & 255) * m + fg) >> 8), b = Math.min(255, (((c >> 16) & 255) * m + fb) >> 8);
           if (al < 1) { const o = buf[row * W + col]; r = (r * al + (o & 255) * (1 - al)) | 0; g = (g * al + ((o >> 8) & 255) * (1 - al)) | 0; b = (b * al + ((o >> 16) & 255) * (1 - al)) | 0; }
