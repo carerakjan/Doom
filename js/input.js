@@ -1,4 +1,4 @@
-// Doom-like: Keyboard, mouse and touch input.
+// Doom-like: Keyboard and mouse input.
 // Classic script (works from file://); top-level names are shared with the other js/*.js files.
 'use strict';
 
