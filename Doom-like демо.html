@@ -882,7 +882,7 @@
     if (MAIN_BOSSES.indexOf(n) >= 0) toast('УВАГА: ГОЛОВНИЙ БОС!', 3.5);
   }
   function objectiveText() {
-    if (L.objective === 'boss') return 'ПЕРЕМОЖІТЬ БОСА: ' + (bosses[0] ? bosses[0].name : '');
+    if (L.objective === 'boss') return exitOpen ? 'ДІЙДІТЬ ДО ВИХОДУ' : 'ПЕРЕМОЖІТЬ БОСА: ' + (bosses[0] ? bosses[0].name : '');
     if (L.objective === 'key') return hasKey ? 'ДІЙДІТЬ ДО ВИХОДУ' : 'ЗНАЙДІТЬ КЛЮЧ-КРИСТАЛ';
     return 'ВБИЙТЕ ВСІХ ВОРОГІВ';
   }
@@ -1505,7 +1505,10 @@
     totalEnemies = enemies.length;
     aliveCount = enemies.reduce((s, e) => s + (e.dead ? 0 : 1), 0);
     const wasOpen = exitOpen;
-    exitOpen = L.objective === 'key' ? hasKey : aliveCount === 0;
+    // boss levels open the exit once every boss is down; leftover minions elsewhere don't block it
+    exitOpen = L.objective === 'key' ? hasKey
+      : L.objective === 'boss' && bosses.length ? bosses.every(b => b.dead)
+      : aliveCount === 0;
     if (exitOpen && !wasOpen) { toast('ВИХІД ВІДКРИТО!', 3); tone(440, 0.4, 'triangle', 0.08, 880); }
     const de = Math.hypot(L.exit.x - player.x, L.exit.y - player.y);
     if (de < 0.7 && exitOpen) { state = 'complete'; tone(523, 0.5, 'triangle', 0.1, 1046); }
