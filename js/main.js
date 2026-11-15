@@ -9,6 +9,7 @@ let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
+  padPoll(dt);
   const isPaused = state === 'play' && paused;
   if (state === 'title') time += dt;
   else if (!isPaused) update(dt);
@@ -37,6 +38,9 @@ window.__doom = {
   MAX_AMMO,
   setDiff(i) {
     diffIdx = i;
+  },
+  get paused() {
+    return paused;
   },
   get state() {
     return state;

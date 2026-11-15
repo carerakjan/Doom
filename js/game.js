@@ -527,6 +527,7 @@ function hurtPlayer(d) {
   lastHurt = time;
   shake = Math.max(shake, 0.18);
   tone(110, 0.15, 'sawtooth', 0.08, 60);
+  padRumble(Math.min(1, 0.3 + d / 40), 160);
   if (player.hp <= 0) {
     player.hp = 0;
     showScreen('dead');
@@ -1090,8 +1091,9 @@ function update(dt) {
     mx -= rx;
     my -= ry;
   }
-  const ts = touchStick(); // analog: a partly pushed stick walks slower
-  if (ts) {
+  // analog sticks (touch, gamepad): a partly pushed stick walks slower
+  for (const ts of [touchStick(), padStick()]) {
+    if (!ts) continue;
     mx += dx * ts.f + rx * ts.s;
     my += dy * ts.f + ry * ts.s;
   }
@@ -1105,7 +1107,7 @@ function update(dt) {
     if (walkable(nx, player.y, r) && !playerBlocked(player.x, player.y, nx, player.y)) player.x = nx;
     if (walkable(player.x, ny, r) && !playerBlocked(player.x, player.y, player.x, ny)) player.y = ny;
   }
-  if (keys.Space || keys.ControlLeft || keys.ControlRight || mouseDown || touchFiring()) fireWeapon();
+  if (keys.Space || keys.ControlLeft || keys.ControlRight || mouseDown || touchFiring() || padFiring()) fireWeapon();
 
   const pcx = Math.floor(player.x),
     pcy = Math.floor(player.y);
