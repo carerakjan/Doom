@@ -1165,7 +1165,10 @@
   // ===================================================================
   // Blood, gore and sparks
   // ===================================================================
-  function addPart(p) { if (parts.length < 380) parts.push(p); }
+  const MAX_PARTS = 380, MAX_DECALS = 160; // caps for live particles and floor decals
+  function addPart(p) { if (parts.length < MAX_PARTS) parts.push(p); }
+  // big decals (death pools) always land and push out the oldest; small drops are skipped once full
+  function addDecal(d, force) { if (force) { decals.push(d); if (decals.length > MAX_DECALS) decals.shift(); } else if (decals.length < MAX_DECALS) decals.push(d); }
   function bloodHit(x, y, n, fromAng) {
     for (let i = 0; i < n; i++) {
       const a = fromAng + rand(-0.9, 0.9), sp = rand(1, 3.2);
@@ -1183,8 +1186,7 @@
       const a = rand(0, 6.283), sp = rand(0.8, big ? 5 : 3.6), gib = i % 5 === 0;
       addPart({ k: gib ? 'gib' : 'blood', x: e.x, y: e.y, z: rand(0.2, 0.3 + 0.5 * d.scale), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rand(1.5, 4.8), life: 2 + Math.random(), size: gib ? rand(0.12, 0.2) : rand(0.07, 0.15) });
     }
-    decals.push({ x: e.x, y: e.y, k: 'pool', scale: d.scale * 0.95 });
-    if (decals.length > 140) decals.shift();
+    addDecal({ x: e.x, y: e.y, k: 'pool', scale: d.scale * 0.95 }, true);
     const dp = Math.hypot(e.x - player.x, e.y - player.y);
     if (dp < 3.4) screenSplat(4 + Math.floor(Math.random() * 5) + (big ? 4 : 0));
     shake = Math.max(shake, big ? 0.35 : 0.12);
@@ -1196,7 +1198,7 @@
       p.vz -= 9 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.life -= dt;
       if (cell(p.x, p.y)) { p.x -= p.vx * dt; p.y -= p.vy * dt; p.vx = -p.vx * 0.3; p.vy = -p.vy * 0.3; }
       if (p.z <= 0) {
-        if (p.k === 'blood') { if (decals.length < 160 && Math.random() < 0.45) decals.push({ x: p.x, y: p.y, k: 'blood', scale: rand(0.08, 0.2) }); p.life = 0; }
+        if (p.k === 'blood') { if (Math.random() < 0.45) addDecal({ x: p.x, y: p.y, k: 'blood', scale: rand(0.08, 0.2) }); p.life = 0; }
         else if (p.glow) p.life = 0;
         else { p.z = 0; p.vz = -p.vz * 0.35; p.vx *= 0.6; p.vy *= 0.6; if (Math.abs(p.vz) < 0.5) { p.vz = 0; p.life -= 0.6; } }
       }
