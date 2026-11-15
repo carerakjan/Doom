@@ -344,7 +344,7 @@
     const P = (pts, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath(); g.fill(); };
     const Ln = (x1, y1, x2, y2, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
     const legA = f === 1 ? 7 : 11, legB = f === 1 ? 11 : 7;
-    if (paintRedesign(type, f, g)) return c;
+    if (paintRedesign(type, f, g)) return c; // redesigned types are painted there; only the rest is below
     const human = (skin, cloth, pants, helm, gun, belt, bulk) => {
       const bw = bulk || 0;
       R(23, 62 - legA, 7, legA, pants); R(34, 62 - legB, 7, legB, pants);
@@ -370,28 +370,13 @@
         human('#b88a68', '#3a4a7a', '#2a2a44', '#26262e', 'chain', '#d9a73a', 3); R(28, 25 + bob, 2, 2, '#111'); R(34, 25 + bob, 2, 2, '#111'); break;
       case 'guard':
         human('#c49a78', '#25262c', '#1c1c20', '#3a3e46', 'smg', '#555', 1); R(24, 24 + bob, 16, 3, '#7ae8ff'); E(19, 37 + bob, 4, 3, '#d9a73a'); E(45, 37 + bob, 4, 3, '#d9a73a'); break;
-      case 'imp':
-        R(21, 62 - legA, 9, legA, '#3a1a10'); R(34, 62 - legB, 9, legB, '#3a1a10');
-        P([17, 28, 11, 6, 26, 20], '#e9dcc0'); P([47, 28, 53, 6, 38, 20], '#e9dcc0');
-        if (atk) { R(6, 20, 8, 20, '#8a3a1c'); R(50, 20, 8, 20, '#8a3a1c'); E(9, 18, 7, 7, '#ffb030'); E(9, 18, 3.5, 3.5, '#fff2a8'); } else { R(10, 34 + bob, 8, 15, '#8a3a1c'); R(46, 34 + bob, 8, 15, '#8a3a1c'); }
-        E(32, 38 + bob, 18, 19, '#a04a22'); E(32, 43 + bob, 11, 12, '#c8703a');
-        E(25, 32 + bob, 4.5, 4, '#ffd23f'); E(39, 32 + bob, 4.5, 4, '#ffd23f'); E(25, 32 + bob, 1.6, 3, '#220'); E(39, 32 + bob, 1.6, 3, '#220');
-        if (atk) { E(32, 47 + bob, 8, 5, '#2a0000'); R(26, 43 + bob, 12, 3, '#fff'); } else R(25, 46 + bob, 14, 3, '#2a0000'); break;
-      case 'bull':
       case 'ghost': {
-        const gh = type === 'ghost';
-        const body = gh ? '#8fb4d8' : '#6a5a7a', dark = gh ? '#5a7a9a' : '#3a2e48';
-        if (gh) {
-          P([14, 30, 50, 30, 56, 62 - bob, 32, 54, 8, 62 - bob], dark); E(32, 28 + bob, 17, 17, body);
-          P([6, 40, 16, 34, 18, 50], body); P([58, 40, 48, 34, 46, 50], body);
-        } else {
-          R(14, 50 - (f === 1 ? 3 : 0), 8, 12, dark); R(24, 50, 8, 12 - (f === 1 ? 0 : 3), dark); R(34, 50 - (f === 1 ? 0 : 3), 8, 12, dark); R(44, 50, 8, 12 - (f === 1 ? 3 : 0), dark);
-          E(34, 40 + bob, 24, 15, body); E(34, 44 + bob, 16, 8, sh(body, 1.25));
-        }
-        E(32, gh ? 28 + bob : 30 + bob, 13, 11, gh ? sh(body, 1.1) : sh(body, 0.9));
-        if (!gh) { P([20, 24, 12, 10, 24, 18], '#e9dcc0'); P([44, 24, 52, 10, 40, 18], '#e9dcc0'); }
-        E(26, 27 + bob, 3, 3, gh ? '#111' : '#ffd23f'); E(38, 27 + bob, 3, 3, gh ? '#111' : '#ffd23f');
-        if (atk || !gh) { E(32, 37 + bob, 7, 4, '#2a0a0a'); P([26, 34 + bob, 28, 40 + bob, 30, 34 + bob], '#fff'); P([34, 34 + bob, 36, 40 + bob, 38, 34 + bob], '#fff'); }
+        const body = '#8fb4d8', dark = '#5a7a9a';
+        P([14, 30, 50, 30, 56, 62 - bob, 32, 54, 8, 62 - bob], dark); E(32, 28 + bob, 17, 17, body);
+        P([6, 40, 16, 34, 18, 50], body); P([58, 40, 48, 34, 46, 50], body);
+        E(32, 28 + bob, 13, 11, sh(body, 1.1));
+        E(26, 27 + bob, 3, 3, '#111'); E(38, 27 + bob, 3, 3, '#111');
+        if (atk) { E(32, 37 + bob, 7, 4, '#2a0a0a'); P([26, 34 + bob, 28, 40 + bob, 30, 34 + bob], '#fff'); P([34, 34 + bob, 36, 40 + bob, 38, 34 + bob], '#fff'); }
         break;
       }
       case 'medusa':
@@ -415,70 +400,19 @@
         E(14, 26 + bob, 9, 8, '#9a9eac'); E(50, 26 + bob, 9, 8, '#9a9eac');
         E(32, 17 + bob, 11, 9, '#8a8e9c'); P([22, 14 + bob, 18, 4 + bob, 26, 12 + bob], '#e9dcc0'); P([42, 14 + bob, 46, 4 + bob, 38, 12 + bob], '#e9dcc0');
         E(28, 16 + bob, 2.5, 2, '#7aff90'); E(36, 16 + bob, 2.5, 2, '#7aff90'); break;
-      case 'lord':
-        R(21, 62 - legA - 3, 10, legA + 3, '#2a0a0a'); R(34, 62 - legB - 3, 10, legB + 3, '#2a0a0a');
-        P([5, 30 + bob, 11, 22 + bob, 15, 34 + bob], '#5a1410'); P([59, 30 + bob, 53, 22 + bob, 49, 34 + bob], '#5a1410');
-        if (atk) { R(5, 12, 8, 24, '#6a1812'); R(51, 12, 8, 24, '#6a1812'); E(9, 10, 7, 7, '#ffb030'); E(55, 10, 7, 7, '#ffb030'); }
-        else { R(6, 28 + bob, 8, 26, '#6a1812'); R(50, 28 + bob, 8, 26, '#6a1812'); P([6, 54 + bob, 10, 62, 14, 54 + bob], '#f0e8d0'); P([50, 54 + bob, 54, 62, 58, 54 + bob], '#f0e8d0'); }
-        P([16, 22 + bob, 48, 22 + bob, 52, 54, 12, 54], '#8a1c14'); P([22, 26 + bob, 42, 26 + bob, 44, 50, 20, 50], '#a8281c');
-        E(32, 38 + bob, 5, 5, atk ? '#ffd23f' : '#ff7a1a'); E(32, 38 + bob, 2, 2, '#fff2a8');
-        P([20, 12, 8, 0, 18, 22], '#f0e8d0'); P([44, 12, 56, 0, 46, 22], '#f0e8d0');
-        E(32, 14 + bob, 11, 10, '#a82a1c'); R(25, 20 + bob, 14, 6, '#6a1008'); E(27, 13 + bob, 3, 3, '#ffe060'); E(37, 13 + bob, 3, 3, '#ffe060'); break;
-      case 'spider':
-      case 'general': {
-        const big = type === 'general', col = big ? '#3a3a4a' : '#4a3a5a', glow = big ? '#ff3b1a' : '#46b6ff';
+      case 'spider': {
+        const col = '#4a3a5a', glow = '#46b6ff';
         for (let i = 0; i < 4; i++) {
           const o = (i + f) % 2 ? 3 : -3;
-          Ln(24, 36, 6 + i * 4 + o, 52 + o * 0.5, col, big ? 4 : 3); Ln(6 + i * 4 + o, 52 + o * 0.5, 4 + i * 4, 62, col, big ? 3 : 2);
-          Ln(40, 36, 58 - i * 4 - o, 52 - o * 0.5, col, big ? 4 : 3); Ln(58 - i * 4 - o, 52 - o * 0.5, 60 - i * 4, 62, col, big ? 3 : 2);
+          Ln(24, 36, 6 + i * 4 + o, 52 + o * 0.5, col, 3); Ln(6 + i * 4 + o, 52 + o * 0.5, 4 + i * 4, 62, col, 2);
+          Ln(40, 36, 58 - i * 4 - o, 52 - o * 0.5, col, 3); Ln(58 - i * 4 - o, 52 - o * 0.5, 60 - i * 4, 62, col, 2);
         }
         E(32, 36 + bob, 15, 11, col); E(32, 33 + bob, 10, 6, sh(col, 1.4));
         E(32, 24 + bob, 8, 7, sh(col, 1.2));
         for (let i = 0; i < 3; i++) E(27 + i * 5, 23 + bob, 1.8, 1.8, '#ff3b1a');
-        R(30, 6 + bob, 4, 16, '#222'); if (big) { R(21, 12 + bob, 4, 14, '#222'); R(39, 12 + bob, 4, 14, '#222'); }
-        E(32, 5 + bob, atk ? 5 : 2.5, atk ? 5 : 2.5, glow); if (big && atk) { E(23, 11, 4, 4, glow); E(41, 11, 4, 4, glow); } break;
+        R(30, 6 + bob, 4, 16, '#222');
+        E(32, 5 + bob, atk ? 5 : 2.5, atk ? 5 : 2.5, glow); break;
       }
-      case 'skeleton': {
-        const bn = '#e8e4d0', bd = '#9a9684';
-        R(23, 62 - legA, 4, legA, bn); R(37, 62 - legB, 4, legB, bn); R(21, 60, 8, 3, bd); R(35, 60, 8, 3, bd);
-        R(24, 34 + bob, 16, 18, bd); for (let i = 0; i < 4; i++) R(22, 36 + i * 4 + bob, 20, 2, bn); R(31, 34 + bob, 2, 18, bn);
-        E(32, 24 + bob, 9, 9, bn); R(26, 28 + bob, 12, 5, bd); E(28, 23 + bob, 2.6, 3, '#111'); E(36, 23 + bob, 2.6, 3, '#111'); E(28, 23 + bob, 1, 1.4, '#ff3b1a'); E(36, 23 + bob, 1, 1.4, '#ff3b1a');
-        R(8, 22 + bob, 14, 8, '#5a5a64'); R(42, 22 + bob, 14, 8, '#5a5a64'); R(4, 24 + bob, 6, 4, '#c0301a'); R(54, 24 + bob, 6, 4, '#c0301a');
-        if (atk) { E(5, 26, 5, 5, '#ffb030'); E(59, 26, 5, 5, '#ffb030'); }
-        R(14, 30 + bob, 3, 20, bn); R(47, 30 + bob, 3, 20, bn); break;
-      }
-      case 'mancubus':
-        R(20, 60, 8, 4, '#3a2418'); R(36, 60, 8, 4, '#3a2418');
-        E(32, 42 + bob, 25, 20, '#8a5a3a'); E(32, 46 + bob, 17, 13, '#b88460');
-        R(2, 30 + bob, 14, 11, '#3a3a42'); R(48, 30 + bob, 14, 11, '#3a3a42'); E(3, 35 + bob, atk ? 6 : 3, atk ? 6 : 3, atk ? '#ffb030' : '#ff6a1a'); E(61, 35 + bob, atk ? 6 : 3, atk ? 6 : 3, atk ? '#ffb030' : '#ff6a1a');
-        E(32, 20 + bob, 9, 8, '#9a6a46'); E(28, 19 + bob, 2.4, 2.4, '#ffd23f'); E(36, 19 + bob, 2.4, 2.4, '#ffd23f'); R(28, 25 + bob, 8, 2, '#2a0a0a');
-        P([24, 15 + bob, 22, 6 + bob, 29, 13 + bob], '#e9dcc0'); P([40, 15 + bob, 42, 6 + bob, 35, 13 + bob], '#e9dcc0'); break;
-      case 'spawner':
-        P([14, 22, 6, 4, 22, 16], '#e9dcc0'); P([50, 22, 58, 4, 42, 16], '#e9dcc0');
-        E(32, 32 + bob, 23, 21, '#6a3a3a'); E(32, 28 + bob, 17, 13, '#8a4a4a');
-        E(24, 24 + bob, 3.5, 3.5, '#ffe060'); E(40, 24 + bob, 3.5, 3.5, '#ffe060'); E(32, 20 + bob, 3.5, 3.5, '#ffe060');
-        E(32, 42 + bob, atk ? 14 : 11, atk ? 9 : 6, '#1a0606'); for (let i = 0; i < 6; i++) R(22 + i * 4, 38 + bob, 2, 4, '#fff');
-        if (atk) E(32, 44, 4, 4, '#ece6d0'); break;
-      case 'necro':
-        P([32, 26, 0, 8, 6, 48], '#1a1420'); P([32, 26, 64, 8, 58, 48], '#1a1420');
-        R(22, 62 - legA - 3, 8, legA + 3, '#14101a'); R(34, 62 - legB - 3, 8, legB + 3, '#14101a');
-        if (atk) { R(10, 12, 7, 26, '#3a2a50'); R(47, 12, 7, 26, '#3a2a50'); E(13, 10, 6, 6, '#ff5a1a'); E(51, 10, 6, 6, '#ff5a1a'); } else { R(12, 30 + bob, 7, 22, '#3a2a50'); R(45, 30 + bob, 7, 22, '#3a2a50'); }
-        E(32, 38 + bob, 15, 20, '#2a1a40'); E(32, 40 + bob, 9, 13, '#6a3a90'); E(32, 40 + bob, 3, 5, '#ff7a1a');
-        E(32, 18 + bob, 10, 9, '#3a2a50'); P([21, 14 + bob, 24, 3 + bob, 29, 11 + bob, 32, 2 + bob, 35, 11 + bob, 40, 3 + bob, 43, 14 + bob], '#6a3a90');
-        E(27, 19 + bob, 2.4, 2, '#ff7a1a'); E(37, 19 + bob, 2.4, 2, '#ff7a1a'); break;
-      case 'titan':
-        R(18, 46, 12, 18 - (f === 1 ? 3 : 0), '#4a4e5a'); R(34, 46, 12, 18 - (f === 1 ? 0 : 3), '#4a4e5a'); R(16, 60, 16, 4, '#2a2e36'); R(32, 60, 16, 4, '#2a2e36');
-        P([14, 20 + bob, 50, 20 + bob, 54, 50, 10, 50], '#6a6e7a'); P([20, 24 + bob, 44, 24 + bob, 46, 46, 18, 46], '#8a8e9a');
-        E(32, 36 + bob, 7, 7, atk ? '#ffd23f' : '#ff7a1a'); E(32, 36 + bob, 3, 3, '#fff2a8');
-        R(46, 22 + bob, 16, 14, '#2a2a30'); R(58, 25 + bob, 6, 8, atk ? '#ffb030' : '#7a2a1a'); R(2, 26 + bob, 10, 24, '#5a5e6a'); P([2, 50 + bob, 5, 60, 8, 50 + bob], '#c0c4d0'); P([8, 50 + bob, 11, 60, 12, 50 + bob], '#c0c4d0');
-        E(32, 14 + bob, 10, 8, '#7a7e8a'); P([22, 10 + bob, 14, 0, 24, 14 + bob], '#e9dcc0'); P([42, 10 + bob, 50, 0, 40, 14 + bob], '#e9dcc0'); R(25, 13 + bob, 14, 4, '#ff3b1a'); break;
-      case 'heart':
-        for (let i = 0; i < 5; i++) { Ln(8 + i * 12, 64, 12 + i * 10, 44, '#5a1414', 4); }
-        P([10, 28, 4, 4, 20, 20], '#e9dcc0'); P([54, 28, 60, 4, 44, 20], '#e9dcc0'); P([28, 10, 32, 0, 36, 10], '#e9dcc0');
-        E(32, 34, 26, 26, '#7a2a2a'); E(32, 32, 20, 20, '#9a3a34');
-        for (let i = 0; i < 6; i++) Ln(12 + i * 8, 20 + (i % 2) * 6, 14 + i * 7, 50, '#5a1a1a', 1.5);
-        E(32, 26, 13, 10, atk ? '#fff6c0' : '#ffe8a0'); E(32, 26, 3.5, 9, '#220808');
-        E(32, 48, atk ? 14 : 11, atk ? 8 : 5, '#1a0606'); for (let i = 0; i < 7; i++) R(21 + i * 3, 44, 2, 5, '#fff'); break;
     }
     return c;
   }
