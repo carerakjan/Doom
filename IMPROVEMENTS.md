@@ -53,5 +53,5 @@
 
 ## F. Структура (за бажанням, наостанок)
 
-- [ ] **F1. Розбити файл на модулі:** `textures.js`, `monsters.js`, `level.js`, `audio.js`, `render.js`, `game.js` (класичні `<script>`, щоб працювало з `file://`).
+- [x] **F1. Розбити файл на модулі:** `textures.js`, `monsters.js`, `level.js`, `audio.js`, `render.js`, `game.js` (класичні `<script>`, щоб працювало з `file://`).
 - [ ] **F2. Відформатувати дуже довгі однорядкові вирази** (Prettier) для читабельності.
