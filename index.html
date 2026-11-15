@@ -620,7 +620,7 @@
   function makeEnemy(type, x, y, mul, extra) {
     const d = DEFS[type];
     const hp = Math.round(d.hp * mul.hp * ((extra && extra.mul) || 1));
-    return Object.assign({ type, x, y, hp, max: hp, dmMul: mul.dm, spMul: mul.sp, alert: false, hit: 0, atkAnim: 0, cool: 1 + Math.random(), anim: Math.random() * 5, burst: 0, gapT: 0, strikeT: 0, spawnN: 0, dead: false, boss: !!d.boss || !!(extra && extra.name), name: (extra && extra.name) || d.name }, {});
+    return { type, x, y, hp, max: hp, dmMul: mul.dm, spMul: mul.sp, alert: false, hit: 0, atkAnim: 0, cool: 1 + Math.random(), anim: Math.random() * 5, burst: 0, gapT: 0, strikeT: 0, spawnN: 0, dead: false, boss: !!d.boss || !!(extra && extra.name), name: (extra && extra.name) || d.name };
   }
 
   function genLevel(n, di) {
@@ -726,7 +726,7 @@
       used.push([arena.cx + 0.5, arena.cy + 0.5]);
       for (const b of BOSS_PLAN[n]) {
         const e = makeEnemy(b.type, arena.cx + 0.5 + (b.dx || 0), arena.cy + 0.5, mul, b);
-        if (!(DEFS[b.type].boss)) e.noRevive = true; else e.noRevive = true;
+        e.noRevive = true; // boss-arena enemies are never resurrected
         enemies.push(e);
       }
       for (let i = 0; i < 2; i++) { const p = spot(arena, 2); enemies.push(makeEnemy(pool[i % pool.length], p.x, p.y, mul)); }
