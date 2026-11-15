@@ -1911,8 +1911,8 @@
   }
 
   // Original hero: a brutal bald marine with a beard, scars and a red cyber-eye in green plate armour.
-  function drawFace(x, y, S) {
-    const hp = player.hp, lvl = hp > 80 ? 0 : hp > 60 ? 1 : hp > 40 ? 2 : hp > 20 ? 3 : 4;
+  function drawFace(x, y, S, hp) {
+    const lvl = hp > 80 ? 0 : hp > 60 ? 1 : hp > 40 ? 2 : hp > 20 ? 3 : 4;
     const dead = state === 'dead' || hp <= 0, hurt = time - lastHurt < 0.45, grin = grinT > 0 && !hurt && !dead;
     ctx.save(); ctx.translate(x, y); ctx.scale(S / 56, S / 56);
     ctx.beginPath(); ctx.rect(0, 0, 56, 56); ctx.clip();
@@ -1981,7 +1981,7 @@
       ctx.fillStyle = cur ? '#d9a73a' : own ? '#4a4552' : '#1c1a22'; ctx.fillRect(sx, sy, 24, 20);
       ctx.fillStyle = cur ? '#1a1206' : own ? '#e8e4ee' : '#4a4552'; ctx.font = 'bold 14px monospace'; ctx.fillText(String((i + 1) % 10), sx + 8, sy + 15);
     }
-    drawFace(W / 2 - 28, y0 + 5, 56);
+    drawFace(W / 2 - 28, y0 + 5, 56, player.hp);
     panel(376, 100);
     const w = WEAPONS[player.weapon];
     ctx.fillStyle = '#8a8494'; ctx.font = 'bold 10px monospace'; ctx.fillText(w.name, 384, y0 + 22);
@@ -2103,7 +2103,7 @@
     centerText('DOOM-LIKE', 96, 64, '#e2503c');
     centerText('30 рівнів · 27 монстрів · 10 видів зброї · 6 босів', 132, 15, '#e8e4ee');
     if (!player) player = newPlayer();
-    const sv = player.hp; player.hp = 100; drawFace(W / 2 - 35, 140, 70); player.hp = sv;
+    drawFace(W / 2 - 35, 140, 70, 100);
     ctx.font = '11px monospace'; ctx.fillStyle = '#9b94a8'; ctx.fillText(soundLabel() + ' (M)', 10, 18);
     if (bestLevel > 0) { ctx.font = '11px monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#9b94a8'; ctx.fillText(bestLevel >= MAX_LEVEL ? 'Рекорд: гру пройдено' : 'Рекорд: рівень ' + bestLevel, W - 10, 18); ctx.textAlign = 'left'; }
     centerText(savedGame ? 'СКЛАДНІСТЬ НОВОЇ ГРИ' : 'СКЛАДНІСТЬ', 228, 12, '#9b94a8');
