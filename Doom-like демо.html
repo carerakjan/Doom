@@ -1374,6 +1374,28 @@
   // ===================================================================
   // Update
   // ===================================================================
+  // player <-> enemy bodies: moves that bring two bodies deeper into each other are rejected
+  const PLAYER_R = 0.22;
+  function bodyR(e) { return DEFS[e.type].hr * 0.75; }
+  function bumps(x0, y0, x1, y1, ox, oy, rr) {
+    const d1 = Math.hypot(x1 - ox, y1 - oy);
+    return d1 < rr && d1 < Math.hypot(x0 - ox, y0 - oy);
+  }
+  function playerBlocked(x0, y0, x1, y1) {
+    for (const e of enemies) if (!e.dead && bumps(x0, y0, x1, y1, e.x, e.y, PLAYER_R + bodyR(e))) return true;
+    return false;
+  }
+  // push an overlapping enemy (spawned, revived, shoved by its neighbours) out of the player; static ones push the player instead
+  function separateFromPlayer(e, d) {
+    let ox = e.x - player.x, oy = e.y - player.y, od = Math.hypot(ox, oy);
+    const rr = PLAYER_R + bodyR(e);
+    if (od >= rr) return;
+    if (od < 1e-4) { ox = Math.cos(player.angle); oy = Math.sin(player.angle); od = 1; }
+    const push = (rr - od) / od;
+    if (d.atk !== 'heart' && walkable(e.x + ox * push, e.y + oy * push, 0.28)) { e.x += ox * push; e.y += oy * push; }
+    else if (walkable(player.x - ox * push, player.y - oy * push, 0.22)) { player.x -= ox * push; player.y -= oy * push; }
+  }
+
   function update(dt) {
     time += dt;
     cooldown = Math.max(0, cooldown - dt); fireT = Math.max(0, fireT - dt); sawT = Math.max(0, sawT - dt); flameT = Math.max(0, flameT - dt); railT = Math.max(0, railT - dt); slowT = Math.max(0, slowT - dt); switchT = Math.max(0, switchT - dt);
@@ -1396,8 +1418,8 @@
     const len = Math.hypot(mx, my); moving = len > 0;
     if (len > 0) {
       const sp = 3.3 * (slowT > 0 ? 0.55 : 1) * dt / len, nx = player.x + mx * sp, ny = player.y + my * sp, r = 0.22;
-      if (walkable(nx, player.y, r)) player.x = nx;
-      if (walkable(player.x, ny, r)) player.y = ny;
+      if (walkable(nx, player.y, r) && !playerBlocked(player.x, player.y, nx, player.y)) player.x = nx;
+      if (walkable(player.x, ny, r) && !playerBlocked(player.x, player.y, player.x, ny)) player.y = ny;
     }
     if (keys.Space || keys.ControlLeft || keys.ControlRight || mouseDown) fireWeapon();
 
@@ -1427,8 +1449,9 @@
         e.leapT = (e.leapT || 0) - dt;
         if (e.leaping > 0) {
           e.leaping -= dt; const lx = e.x + e.lvx * dt, ly = e.y + e.lvy * dt;
-          if (walkable(lx, e.y, 0.28)) e.x = lx;
-          if (walkable(e.x, ly, 0.28)) e.y = ly;
+          const lr = PLAYER_R + bodyR(e);
+          if (walkable(lx, e.y, 0.28) && !bumps(e.x, e.y, lx, e.y, player.x, player.y, lr)) e.x = lx;
+          if (walkable(e.x, ly, 0.28) && !bumps(e.x, e.y, e.x, ly, player.x, player.y, lr)) e.y = ly;
           if (dist < 1.0 && !e.leapHit) { e.leapHit = true; e.meleeT = 0.3; hurtPlayer(d.melee * e.dmMul); tone(150, 0.1, 'square', 0.05, 80); }
           continue;
         } else if (sight && dist > 1.8 && dist < 5 && e.leapT <= 0) { e.leapT = 2.6; e.leaping = 0.4; e.leapHit = false; e.lvx = ex / dist * 9; e.lvy = ey / dist * 9; e.atkAnim = 0.4; }
@@ -1448,9 +1471,9 @@
         let wx = want.x - e.x, wy = want.y - e.y; const wl = Math.hypot(wx, wy) || 1;
         wx /= wl; wy /= wl;
         if (e.type === 'skull') { const w = Math.sin(time * 6 + i) * 0.7; const t = wx; wx += -wy * w; wy += t * w; }
-        const sp = spd * dt, nx = e.x + wx * sp, ny = e.y + wy * sp, r = 0.28;
-        if (walkable(nx, e.y, r)) e.x = nx;
-        if (walkable(e.x, ny, r)) e.y = ny;
+        const sp = spd * dt, nx = e.x + wx * sp, ny = e.y + wy * sp, r = 0.28, br = PLAYER_R + bodyR(e);
+        if (walkable(nx, e.y, r) && !bumps(e.x, e.y, nx, e.y, player.x, player.y, br)) e.x = nx;
+        if (walkable(e.x, ny, r) && !bumps(e.x, e.y, e.x, ny, player.x, player.y, br)) e.y = ny;
       }
       // melee
       const reach = d.boss ? 1.6 : (d.atk === 'melee' ? d.range + 0.1 : 0.95);
@@ -1478,6 +1501,7 @@
           if (DEFS[o.type].atk !== 'heart' && walkable(o.x + ox * push, o.y + oy * push, 0.28)) { o.x += ox * push; o.y += oy * push; }
         }
       }
+      separateFromPlayer(e, d);
     }
     // skulls released by a spawner free a slot when they die
     for (const e of enemies) if (e.dead && e.parent && !e.freed) { e.freed = true; e.parent.spawnN = Math.max(0, e.parent.spawnN - 1); }
