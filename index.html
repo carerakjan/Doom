@@ -1845,9 +1845,20 @@
       const k = kick * 6, y = ay - k, spin = time * (fireT > 0 || (mouseDown && cooldown > 0) ? 38 : 4);
       R(ax - 48, y - 24, 34, 30, sleeve); R(ax + 16, y - 24, 34, 30, sleeve);
       R(ax - 26, y - 96, 52, 70, '#3a3a42'); R(ax - 26, y - 96, 52, 6, '#6a6a76');
-      for (let i = 0; i < 6; i++) { const ph = spin + i * 1.047, bx = ax + Math.sin(ph) * 18; R(bx - 4, y - 176, 8, 84, Math.cos(ph) > 0 ? '#8a8a96' : '#4a4a54'); R(bx - 4, y - 178, 8, 5, '#22222a'); }
+      // barrels recede toward the muzzle (perspective): spread 18px at the housing, 8px at the tip; back ones drawn first
+      const bTop = y - 146, bBot = y - 94, brl = [];
+      for (let i = 0; i < 6; i++) { const ph = spin + i * 1.047; brl.push({ sn: Math.sin(ph), cs: Math.cos(ph) }); }
+      brl.sort((a, b) => a.cs - b.cs);
+      ctx.fillStyle = '#1e1e24'; ctx.beginPath(); ctx.ellipse(ax, bTop + 2, 13, 5, 0, 0, 6.283); ctx.fill();
+      for (const b of brl) {
+        const x0 = ax + b.sn * 18, x1 = ax + b.sn * 8, lit = b.cs > 0;
+        ctx.fillStyle = lit ? '#8a8a96' : '#4a4a54';
+        ctx.beginPath(); ctx.moveTo(x0 - 4, bBot); ctx.lineTo(x0 + 4, bBot); ctx.lineTo(x1 + 2.5, bTop); ctx.lineTo(x1 - 2.5, bTop); ctx.fill();
+        R(x1 - 2.5, bTop - 2, 5, 3, '#121216');
+      }
+      R(ax - 16, y - 124, 32, 6, '#2a2a30'); R(ax - 16, y - 124, 32, 2, '#5a5a66');
       R(ax - 30, y - 100, 60, 8, '#2a2a30'); R(ax - 18, y - 60, 36, 40, '#4a3626'); R(ax - 34, y - 50, 16, 26, skin); R(ax + 18, y - 46, 16, 24, skinD);
-      flash(ax, y - 182, 22);
+      flash(ax, y - 150, 22);
     } else if (w.id === 'rocket') {
       const k = kick * 22, y = ay - k;
       R(ax - 52, y - 22, 40, 30, sleeve); R(ax + 12, y - 22, 40, 30, sleeve);
