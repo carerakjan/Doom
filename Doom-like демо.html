@@ -871,11 +871,14 @@
   function restoreSnap(s) { const o = JSON.parse(s); Object.assign(player, { hp: o.hp, weapon: o.weapon, own: o.own, ammo: o.ammo }); }
   function toast(t, dur) { toasts.push({ t, life: dur || 2.5 }); if (toasts.length > 4) toasts.shift(); }
 
-  function startLevel(n, keepStats) {
+  // keepStats: restore weapons/ammo/hp from the level-start snapshot; retry: death or R restart, which refills hp
+  // ("Continue" from the title restores the saved hp as is, otherwise quitting would be a free heal)
+  function startLevel(n, keepStats, retry) {
     level = n; L = genLevel(n); grid = L.grid; size = L.size; theme = themeTex(L.theme);
     if (!player) player = newPlayer();
     player.x = L.start.x; player.y = L.start.y; player.angle = L.start.angle;
     if (keepStats && snapshot) restoreSnap(snapshot);
+    if (retry) player.hp = Math.max(player.hp, 100);
     enemies = L.enemies; corpses = []; balls = []; parts = []; decals = []; strikes = []; bloodScreen = []; casings = []; pballs = []; flameT = 0; railT = 0; slowT = 0;
     pickups = L.pickups.map(p => ({ type: p.type, x: p.x, y: p.y, taken: false }));
     decor = L.decor;
@@ -1127,7 +1130,7 @@
       if (e.code === 'KeyQ') cycleWeapon(-1);
       if (e.code === 'KeyE') cycleWeapon(1);
     }
-    if (e.code === 'KeyR' && (state === 'play' || state === 'dead')) startLevel(level, true);
+    if (e.code === 'KeyR' && (state === 'play' || state === 'dead')) startLevel(level, true, true);
   });
   addEventListener('keyup', e => { keys[e.code] = false; });
   function lockPointer() {
@@ -1171,7 +1174,7 @@
 
   function advanceMenu() {
     if (state === 'title') { titleStart(); return true; }
-    if (state === 'dead') { if (screenReady()) startLevel(level, true); return true; }
+    if (state === 'dead') { if (screenReady()) startLevel(level, true, true); return true; }
     if (state === 'complete') {
       if (!screenReady()) return true;
       if (level >= MAX_LEVEL) { showScreen('victory'); return true; }
