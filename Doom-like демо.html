@@ -39,7 +39,7 @@
   <li><kbd>←</kbd><kbd>→</kbd> або миша: поворот</li>
   <li>клік або <kbd>Пробіл</kbd>: вогонь</li>
   <li><kbd>1</kbd>–<kbd>4</kbd> або <kbd>Q</kbd><kbd>E</kbd>: зброя</li>
-  <li><kbd>R</kbd> рестарт рівня · <kbd>M</kbd> звук · <kbd>Esc</kbd>/<kbd>P</kbd> пауза</li>
+  <li><kbd>R</kbd> рестарт рівня · <kbd>M</kbd> звук · <kbd>[</kbd>/<kbd>]</kbd> чутливість миші · <kbd>Esc</kbd>/<kbd>P</kbd> пауза</li>
 </ul>
 <script>
 // Doom-like: raycasting FPS. Original code, original art and original synthesized music.
@@ -922,15 +922,24 @@
     if (!own[WEAPONS[p.weapon].id]) return null;
     return { level: o.level, diffIdx: o.diffIdx, player: { hp: Math.round(p.hp), weapon: p.weapon, own, ammo } };
   }
-  let savedGame = loadSave(), bestLevel = 0, newGameArmT = -1;
-  { const o = readStore(); if (o) { muted = o.muted === true; bestLevel = inRange(o.best, 0, MAX_LEVEL) ? Math.floor(o.best) : 0; } }
+  const MOUSE_BASE = 0.0025, SENS_STEPS = [0.4, 0.5, 0.6, 0.8, 1, 1.25, 1.5, 2, 2.5, 3];
+  let savedGame = loadSave(), bestLevel = 0, newGameArmT = -1, sens = 1;
+  { const o = readStore(); if (o) { muted = o.muted === true; bestLevel = inRange(o.best, 0, MAX_LEVEL) ? Math.floor(o.best) : 0; if (inRange(o.sens, SENS_STEPS[0], SENS_STEPS[SENS_STEPS.length - 1])) sens = o.sens; } }
+  function prefs() { return { muted, best: bestLevel, sens }; }
   function saveProgress(lv, stats) {
     bestLevel = Math.max(bestLevel, lv);
     savedGame = { level: lv, diffIdx, player: stats };
-    writeStore({ level: lv, diffIdx, player: stats, muted, best: bestLevel });
+    writeStore(Object.assign({ level: lv, diffIdx, player: stats }, prefs()));
   }
-  function clearProgress() { savedGame = null; writeStore({ muted, best: bestLevel }); }
-  function savePrefs() { writeStore(Object.assign(readStore() || {}, { muted, best: bestLevel })); }
+  function clearProgress() { savedGame = null; writeStore(prefs()); }
+  function savePrefs() { writeStore(Object.assign(readStore() || {}, prefs())); }
+  // mouse sensitivity: multiplier of the base turn rate, stepped with [ / ] (or - / =)
+  function changeSens(dir) {
+    let i = 0; for (let k = 0; k < SENS_STEPS.length; k++) if (Math.abs(SENS_STEPS[k] - sens) < Math.abs(SENS_STEPS[i] - sens)) i = k;
+    i = Math.max(0, Math.min(SENS_STEPS.length - 1, i + dir));
+    sens = SENS_STEPS[i]; savePrefs(); tone(300 + i * 40, 0.05, 'square', 0.03);
+    toast('ЧУТЛИВІСТЬ МИШІ ×' + sens, 1.5);
+  }
   function continueGame() {
     const s = savedGame; if (!s) { newGame(); return; }
     diffIdx = s.diffIdx; player = newPlayer(); snapshot = JSON.stringify(s.player);
@@ -1062,6 +1071,8 @@
     // (otherwise holding Space to shoot skips the death / level-complete screens instantly)
     if (e.repeat) return;
     if (e.code === 'KeyM') { muted = !muted; savePrefs(); }
+    if (state === 'play' && (e.code === 'BracketLeft' || e.code === 'Minus')) changeSens(-1);
+    if (state === 'play' && (e.code === 'BracketRight' || e.code === 'Equal')) changeSens(1);
     if (state === 'play' && paused) {
       // Esc can also arrive right after the browser released pointer lock (which already paused us): don't undo that
       if (e.code === 'KeyP' || e.code === 'Enter' || (e.code === 'Escape' && performance.now() - pausedAt > 300)) setPaused(false);
@@ -1123,7 +1134,7 @@
   addEventListener('blur', () => { releaseInput(); if (state === 'play') setPaused(true); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) { releaseInput(); if (state === 'play') setPaused(true); } });
   document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== canvas && state === 'play' && !paused) setPaused(true); });
-  addEventListener('mousemove', e => { if (document.pointerLockElement === canvas && state === 'play' && !paused) player.angle += e.movementX * 0.0025; });
+  addEventListener('mousemove', e => { if (document.pointerLockElement === canvas && state === 'play' && !paused) player.angle += e.movementX * MOUSE_BASE * sens; });
   canvas.addEventListener('wheel', e => { if (state === 'play' && !paused) { cycleWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
   canvas.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -2088,7 +2099,7 @@
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, VH);
       centerText('ПАУЗА', 140, 40, '#ffd23f');
       centerText('Клік, Enter, P або Esc: продовжити', 180, 14, '#ddd');
-      centerText('M звук', 202, 12, '#9b94a8');
+      centerText('M звук · [ ] чутливість миші: ×' + sens, 202, 12, '#9b94a8');
     } else if (state === 'dead') {
       ctx.fillStyle = 'rgba(80,0,0,0.65)'; ctx.fillRect(0, 0, W, VH);
       centerText('ВИ ЗАГИНУЛИ', 150, 40, '#ff5544'); centerText('Enter або клік: спробувати рівень знову', 190, 14, '#ddd');
