@@ -1339,7 +1339,7 @@
     if (d.atk === 'hit' || d.atk === 'ball' || d.atk === 'rocket') {
       if (d.burst) { e.burst = d.burst; e.gapT = 0; } else fireOnce(e, d, ex, ey, dist);
     } else if (d.atk === 'spawn') {
-      if (e.spawnN < 4 && (e.spawnTot || 0) < 10) { e.spawnN++; e.spawnTot = (e.spawnTot || 0) + 1; let sx = e.x + rand(-0.6, 0.6), sy = e.y + rand(-0.6, 0.6); if (!walkable(sx, sy, 0.28)) { sx = e.x; sy = e.y; } const s = makeEnemy('skull', sx, sy, L.mul); s.alert = true; s.parent = e; enemies.push(s); e.atkAnim = 0.4; tone(300, 0.3, 'sawtooth', 0.05, 80); }
+      if (e.spawnN < 4 && (e.spawnTot || 0) < 10) { e.spawnN++; e.spawnTot = (e.spawnTot || 0) + 1; let sx = e.x + rand(-0.6, 0.6), sy = e.y + rand(-0.6, 0.6); if (!walkable(sx, sy, 0.28)) { sx = e.x; sy = e.y; } const s = makeEnemy('skull', sx, sy, L.mul); s.alert = true; s.parent = e; s.noRevive = true; enemies.push(s); e.atkAnim = 0.4; tone(300, 0.3, 'sawtooth', 0.05, 80); }
     } else if (d.atk === 'necro') {
       strikes.push({ x: player.x, y: player.y, t: 0.9, dmg: d.dmg * e.dmMul }); e.atkAnim = 0.5; tone(200, 0.4, 'sine', 0.05, 600);
     } else if (d.atk === 'heart') {
