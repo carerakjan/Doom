@@ -1472,12 +1472,17 @@
     strikes = strikes.filter(s => s.t > 0);
 
     // projectiles
+    // sub-stepped (like player projectiles) so fast balls can't skip past the player's hit radius at low FPS
     for (const b of balls) {
-      b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-      const hitWall = cell(b.x, b.y), hitP = Math.hypot(b.x - player.x, b.y - player.y) < (b.kind === 'r' ? 0.5 : 0.35);
-      if (hitWall || hitP) {
-        if (b.kind === 'r') explode(b); else if (hitP) { hurtPlayer(b.dmg); if (b.kind === 'e') slowT = 2.5; } else sparks(b.x - b.vx * dt, b.y - b.vy * dt, 0.35, 3, 'ember');
-        b.life = 0;
+      b.life -= dt;
+      const hr = b.kind === 'r' ? 0.5 : 0.35, n = Math.max(1, Math.ceil(Math.hypot(b.vx, b.vy) * dt / 0.15)), sx = b.vx * dt / n, sy = b.vy * dt / n;
+      for (let i = 0; i < n; i++) {
+        b.x += sx; b.y += sy;
+        const hitWall = cell(b.x, b.y), hitP = Math.hypot(b.x - player.x, b.y - player.y) < hr;
+        if (!hitWall && !hitP) continue;
+        if (hitWall && !hitP) { b.x -= sx; b.y -= sy; }
+        if (b.kind === 'r') explode(b); else if (hitP) { hurtPlayer(b.dmg); if (b.kind === 'e') slowT = 2.5; } else sparks(b.x, b.y, 0.35, 3, 'ember');
+        b.life = 0; break;
       }
     }
     balls = balls.filter(b => b.life > 0);
