@@ -38,7 +38,7 @@
 ## D. Чистка коду (без зміни поведінки)
 
 - [x] **D1. Видалити мертвий код у `paintMonster`.** Гілки `imp`, `bull`, `lord`, `general`, `skeleton`, `mancubus`, `spawner`, `necro`, `titan`, `heart` ніколи не виконуються, бо ці типи раніше обробляє `paintRedesign` (~90 рядків).
-- [ ] **D2. Видалити невикористані функції та змінні:** `deadCanvas` (64 px, р. 476), `t = MON_TEX[...]` у циклі ворогів `renderWorld` (р. 1580), зайвий `ctx.fillStyle` перед `textShadow` (р. 1920).
+- [x] **D2. Видалити невикористані функції та змінні:** `deadCanvas` (64 px, р. 476), `t = MON_TEX[...]` у циклі ворогів `renderWorld` (р. 1580), зайвий `ctx.fillStyle` перед `textShadow` (р. 1920).
 - [ ] **D3. Прибрати безглузді конструкції:** `if (!boss) e.noRevive = true; else e.noRevive = true;` (р. 787), `Object.assign({...}, {})` у `makeEnemy` (р. 681).
 - [ ] **D4. Винести спільні хелпери малювання** (`E`, `R`, `P`, `Ln`, `E2`), які дублюються в `paintRedesign`, `paintMonster`, `paintItem`.
 - [ ] **D5. Вирівняти ліміти декалей:** 140 у `gore()` проти 160 в `updateFx()`. Винести ліміти частинок і декалей у константи.

@@ -421,12 +421,6 @@
     for (let i = 0; i < t.length; i++) { const c = t[i]; if (c >>> 24) o[i] = 0xff000000 | ((((c >> 16) & 255) + 510) / 3 << 16) | ((((c >> 8) & 255) + 510) / 3 << 8) | (((c & 255) + 510) / 3); }
     return o;
   }
-  function deadCanvas(c) {
-    const d = mkCanvas(64, 64), g = d.getContext('2d');
-    g.drawImage(c, 0, 0, 64, 64, 0, 40, 64, 24);
-    g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(70,0,0,0.5)'; g.fillRect(0, 0, 64, 64);
-    return d;
-  }
   // Monster sprites are painted at 64px, upscaled to 128px and given a detail pass
   // (unsharp mask, grain, rim light, thick outline) for a richer look.
   function sprUp(c) { const d = mkCanvas(128, 128), g = d.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(c, 0, 0, 128, 128); return d; }
@@ -1696,7 +1690,7 @@
     for (const p of parts) list.push({ x: p.x, y: p.y, tex: ITEM_TEX[p.k], scale: p.size, z: Math.max(0, p.z), glow: !!p.glow });
     for (const e of enemies) {
       if (e.dead) continue;
-      const d = DEFS[e.type], t = MON_TEX[e.type];
+      const d = DEFS[e.type];
       const xf = animFor(e, d);
       list.push({ x: e.x, y: e.y, tex: xf.tex, scale: d.scale, z: d.z + (d.float ? Math.sin(time * 3 + e.x) * 0.05 : 0) + xf.dz, sw: xf.sw, sh: xf.sh, ox: xf.ox, alpha: d.ghost ? 0.5 : 1 });
     }
@@ -2040,7 +2034,7 @@
     textShadow('РІВЕНЬ ' + level + '/' + MAX_LEVEL + '  ·  ' + DIFFS[diffIdx].name, 10, 18, '#e8e4ee');
     ctx.font = 'bold 11px monospace';
     textShadow(objectiveText(), 10, 33, exitOpen ? '#3ddc84' : '#ffd23f');
-    if (shield > 0) { ctx.fillStyle = '#9ad8ff'; textShadow('ЗАХИСНЕ ПОЛЕ ' + shield.toFixed(1) + 'с', 10, 48, '#9ad8ff'); }
+    if (shield > 0) { textShadow('ЗАХИСНЕ ПОЛЕ ' + shield.toFixed(1) + 'с', 10, 48, '#9ad8ff'); }
     ctx.textAlign = 'center'; ctx.font = 'bold 13px monospace';
     toasts.forEach((t, i) => { ctx.globalAlpha = Math.min(1, t.life * 2); textShadow(t.t, W / 2, 84 + i * 16, '#fff'); ctx.globalAlpha = 1; });
     const bb = bosses.filter(b => !b.dead && b.alert);
