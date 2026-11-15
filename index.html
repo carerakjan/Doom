@@ -68,6 +68,8 @@
   const W = 640, H = 400, HUD_H = 64, VH = H - HUD_H, HORIZON = VH >> 1, PROJ = 230;
   canvas.width = W; canvas.height = H;
   ctx.imageSmoothingEnabled = false;
+  // first-person weapon is painted flat on this layer, then warped onto the screen with perspective (warpWeapon)
+  const wCanvas = mkCanvas(W, VH), wctx = wCanvas.getContext('2d');
   const viewCv = document.createElement('canvas'); viewCv.width = W; viewCv.height = VH;
   const vctx = viewCv.getContext('2d');
   const img = vctx.createImageData(W, VH);
@@ -1790,23 +1792,36 @@
   // ===================================================================
   // Rendering: weapons, HUD, hero face, overlays
   // ===================================================================
+  // Perspective for the held weapon: rows near the bottom (hands) are drawn 1:1, rows higher up are
+  // squeezed in height and narrowed toward the weapon's centre line, so barrels recede toward the crosshair.
+  const WARP_H0 = 50, WARP_D = 140, WARP_HW = 160; // 1:1 zone height, perspective depth, half-width of the weapon strip
+  function warpWeapon(cx) {
+    const topT = WARP_H0 + WARP_D * Math.log(1 + (VH - WARP_H0) / WARP_D);
+    for (let t = 0; t < topT; t++) {
+      const far = Math.max(0, t - WARP_H0), h = t - far + WARP_D * (Math.exp(far / WARP_D) - 1);
+      const s = 1 / (1 + (h - (t - far)) / WARP_D), rows = Math.max(1, Math.round(1 / s));
+      const sy = VH - Math.floor(h) - rows; if (sy < 0) break;
+      const x0 = Math.max(0, Math.round(cx) - WARP_HW), x1 = Math.min(W, Math.round(cx) + WARP_HW);
+      ctx.drawImage(wCanvas, x0, sy, x1 - x0, rows, cx + (x0 - cx) * s, VH - 1 - t, (x1 - x0) * s, 1);
+    }
+  }
   function drawWeapon() {
     const w = WEAPONS[player.weapon];
     const bob = moving ? Math.sin(time * 9) : Math.sin(time * 1.7) * 0.25;
     const swAmt = switchT > 0 ? Math.pow(switchT / 0.25, 2) : 0;
     const ax = W / 2 + bob * 7 + (moving ? 0 : Math.sin(time * 1.1) * 2), ay0 = VH + 4 + Math.abs(bob) * 5 + swAmt * 130;
     const kick = fireT > 0 ? Math.min(1, fireT / 0.12) : 0;
-    const R = (x, y, ww, hh, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), ww, hh); };
+    const R = (x, y, ww, hh, c) => { wctx.fillStyle = c; wctx.fillRect(Math.round(x), Math.round(y), ww, hh); };
     const skin = '#c99468', skinD = '#a67450', sleeve = '#2e4a34';
     const flash = (x, y, s) => {
       if (kick <= 0.2) return;
-      const grd = ctx.createRadialGradient(x, y, 1, x, y, s * 1.8); grd.addColorStop(0, 'rgba(255,250,200,0.95)'); grd.addColorStop(0.35, 'rgba(255,190,60,0.8)'); grd.addColorStop(1, 'rgba(255,100,0,0)');
-      ctx.fillStyle = grd; ctx.fillRect(x - s * 2, y - s * 2, s * 4, s * 4);
+      const grd = wctx.createRadialGradient(x, y, 1, x, y, s * 1.8); grd.addColorStop(0, 'rgba(255,250,200,0.95)'); grd.addColorStop(0.35, 'rgba(255,190,60,0.8)'); grd.addColorStop(1, 'rgba(255,100,0,0)');
+      wctx.fillStyle = grd; wctx.fillRect(x - s * 2, y - s * 2, s * 4, s * 4);
     };
     const glowC = (x, y, sz, c0, c1) => {
       if (kick <= 0.2) return;
-      const grd = ctx.createRadialGradient(x, y, 1, x, y, sz * 1.8); grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.3, c0); grd.addColorStop(1, c1);
-      ctx.fillStyle = grd; ctx.fillRect(x - sz * 2, y - sz * 2, sz * 4, sz * 4);
+      const grd = wctx.createRadialGradient(x, y, 1, x, y, sz * 1.8); grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.3, c0); grd.addColorStop(1, c1);
+      wctx.fillStyle = grd; wctx.fillRect(x - sz * 2, y - sz * 2, sz * 4, sz * 4);
     };
     if (railT > 0) {
       ctx.save(); ctx.globalAlpha = railT / 0.35;
@@ -1815,6 +1830,7 @@
       ctx.restore();
     }
     const ay = ay0;
+    wctx.clearRect(0, 0, W, VH);
     if (w.id === 'pistol') {
       const k = kick * 16, y = ay - k, slide = kick > 0.3 ? 8 : 0;
       R(ax - 40, y - 28, 30, 34, sleeve); R(ax + 14, y - 28, 30, 34, sleeve);
@@ -1845,20 +1861,14 @@
       const k = kick * 6, y = ay - k, spin = time * (fireT > 0 || (mouseDown && cooldown > 0) ? 38 : 4);
       R(ax - 48, y - 24, 34, 30, sleeve); R(ax + 16, y - 24, 34, 30, sleeve);
       R(ax - 26, y - 96, 52, 70, '#3a3a42'); R(ax - 26, y - 96, 52, 6, '#6a6a76');
-      // barrels recede toward the muzzle (perspective): spread 18px at the housing, 8px at the tip; back ones drawn first
-      const bTop = y - 146, bBot = y - 94, brl = [];
+      // six spinning barrels, back ones first so the front ones overlap them
+      const bTop = y - 176, bBot = y - 92, brl = [];
       for (let i = 0; i < 6; i++) { const ph = spin + i * 1.047; brl.push({ sn: Math.sin(ph), cs: Math.cos(ph) }); }
       brl.sort((a, b) => a.cs - b.cs);
-      ctx.fillStyle = '#1e1e24'; ctx.beginPath(); ctx.ellipse(ax, bTop + 2, 13, 5, 0, 0, 6.283); ctx.fill();
-      for (const b of brl) {
-        const x0 = ax + b.sn * 18, x1 = ax + b.sn * 8, lit = b.cs > 0;
-        ctx.fillStyle = lit ? '#8a8a96' : '#4a4a54';
-        ctx.beginPath(); ctx.moveTo(x0 - 4, bBot); ctx.lineTo(x0 + 4, bBot); ctx.lineTo(x1 + 2.5, bTop); ctx.lineTo(x1 - 2.5, bTop); ctx.fill();
-        R(x1 - 2.5, bTop - 2, 5, 3, '#121216');
-      }
-      R(ax - 16, y - 124, 32, 6, '#2a2a30'); R(ax - 16, y - 124, 32, 2, '#5a5a66');
+      for (const b of brl) { const bx = ax + b.sn * 18; R(bx - 4, bTop, 8, bBot - bTop, b.cs > 0 ? '#8a8a96' : '#4a4a54'); R(bx - 4, bTop - 2, 8, 4, '#121216'); }
+      R(ax - 24, y - 140, 48, 8, '#2a2a30'); R(ax - 24, y - 140, 48, 2, '#5a5a66');
       R(ax - 30, y - 100, 60, 8, '#2a2a30'); R(ax - 18, y - 60, 36, 40, '#4a3626'); R(ax - 34, y - 50, 16, 26, skin); R(ax + 18, y - 46, 16, 24, skinD);
-      flash(ax, y - 150, 22);
+      flash(ax, y - 182, 22);
     } else if (w.id === 'rocket') {
       const k = kick * 22, y = ay - k;
       R(ax - 52, y - 22, 40, 30, sleeve); R(ax + 12, y - 22, 40, 30, sleeve);
@@ -1870,7 +1880,7 @@
       const k = kick * 8, y = ay - k, pu = 0.5 + 0.5 * Math.sin(time * 10);
       R(ax - 46, y - 24, 34, 30, sleeve); R(ax + 14, y - 24, 34, 30, sleeve);
       R(ax - 18, y - 130, 36, 110, '#2a3446'); R(ax - 18, y - 130, 5, 110, '#4a5870');
-      for (let i = 0; i < 4; i++) { ctx.fillStyle = 'rgba(96,224,255,' + (0.55 + pu * 0.4) + ')'; ctx.fillRect(Math.round(ax - 24), Math.round(y - 124 + i * 22), 48, 6); }
+      for (let i = 0; i < 4; i++) { wctx.fillStyle = 'rgba(96,224,255,' + (0.55 + pu * 0.4) + ')'; wctx.fillRect(Math.round(ax - 24), Math.round(y - 124 + i * 22), 48, 6); }
       R(ax - 6, y - 150, 12, 26, '#3a4a6a'); R(ax - 10, y - 158, 20, 10, '#a0f0ff'); R(ax - 14, y - 60, 28, 56, '#2a2a32'); R(ax - 30, y - 50, 16, 26, skin); R(ax + 16, y - 46, 16, 24, skinD);
       glowC(ax, y - 160, 22, 'rgba(96,200,255,0.85)', 'rgba(0,100,255,0)');
     } else if (w.id === 'flame') {
@@ -1879,16 +1889,16 @@
       R(ax - 10, y - 130, 20, 100, '#5a5a64'); R(ax - 10, y - 130, 4, 100, '#8a8a96'); R(ax - 14, y - 138, 28, 10, '#2a2a30');
       R(ax + 26, y - 74, 26, 74, '#b03a1a'); R(ax + 26, y - 74, 26, 6, '#d05a3a'); R(ax + 34, y - 84, 10, 12, '#444'); R(ax + 10, y - 50, 18, 5, '#222');
       R(ax - 14, y - 56, 28, 56, '#3a2a1a'); R(ax - 34, y - 52, 16, 28, skin); R(ax + 14, y - 46, 16, 24, skinD);
-      ctx.fillStyle = Math.random() < 0.5 ? '#ff9a2a' : '#ffd23f'; ctx.beginPath(); ctx.arc(ax, y - 144, 4 + Math.random() * 2, 0, 6.283); ctx.fill();
+      wctx.fillStyle = Math.random() < 0.5 ? '#ff9a2a' : '#ffd23f'; wctx.beginPath(); wctx.arc(ax, y - 144, 4 + Math.random() * 2, 0, 6.283); wctx.fill();
       if (flameT > 0) for (const [c, wd] of [['rgba(255,80,0,0.55)', 54], ['rgba(255,170,30,0.7)', 36], ['rgba(255,240,170,0.85)', 18]]) {
-        ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(ax - 6, y - 142); ctx.lineTo(ax - wd + Math.random() * 10, y - 280 - Math.random() * 30); ctx.lineTo(ax + wd - Math.random() * 10, y - 280 - Math.random() * 30); ctx.lineTo(ax + 6, y - 142); ctx.fill();
+        wctx.fillStyle = c; wctx.beginPath(); wctx.moveTo(ax - 6, y - 142); wctx.lineTo(ax - wd + Math.random() * 10, y - 280 - Math.random() * 30); wctx.lineTo(ax + wd - Math.random() * 10, y - 280 - Math.random() * 30); wctx.lineTo(ax + 6, y - 142); wctx.fill();
       }
     } else if (w.id === 'rail') {
       const k = kick * 14, y = ay - k, ch = cooldown > 0 ? 1 - cooldown / 1.1 : 1;
       R(ax - 46, y - 24, 34, 30, sleeve); R(ax + 14, y - 24, 34, 30, sleeve);
       R(ax - 10, y - 170, 20, 150, '#2a2e3a'); R(ax - 16, y - 170, 6, 130, '#8ab0ff'); R(ax + 10, y - 170, 6, 130, '#8ab0ff');
       for (let i = 0; i < 5; i++) R(ax - 18, y - 160 + i * 26, 36, 5, '#4a5a7a');
-      ctx.fillStyle = 'rgba(120,220,255,' + (0.2 + ch * 0.7) + ')'; ctx.fillRect(Math.round(ax - 5), Math.round(y - 165), 10, 120);
+      wctx.fillStyle = 'rgba(120,220,255,' + (0.2 + ch * 0.7) + ')'; wctx.fillRect(Math.round(ax - 5), Math.round(y - 165), 10, 120);
       R(ax - 20, y - 50, 40, 50, '#3a3a46'); R(ax - 12, y - 40, 24, 40, '#4a3626'); R(ax - 30, y - 46, 16, 26, skin); R(ax + 14, y - 42, 16, 24, skinD);
       glowC(ax, y - 174, 20, 'rgba(120,200,255,0.9)', 'rgba(0,120,255,0)');
     } else if (w.id === 'destroyer') {
@@ -1896,8 +1906,8 @@
       R(ax - 60, y - 22, 36, 30, sleeve); R(ax + 24, y - 22, 36, 30, sleeve);
       R(ax - 34, y - 110, 68, 110, '#4a2a5a'); R(ax - 34, y - 110, 68, 8, '#7a4a8a'); R(ax - 44, y - 90, 10, 50, '#2a1634'); R(ax + 34, y - 90, 10, 50, '#2a1634');
       R(ax - 26, y - 134, 52, 26, '#2a1634');
-      ctx.fillStyle = 'rgba(255,90,255,' + (0.6 + pu * 0.4) + ')'; ctx.beginPath(); ctx.arc(ax, y - 122, 9 + pu * 4, 0, 6.283); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ax, y - 122, 4, 0, 6.283); ctx.fill();
+      wctx.fillStyle = 'rgba(255,90,255,' + (0.6 + pu * 0.4) + ')'; wctx.beginPath(); wctx.arc(ax, y - 122, 9 + pu * 4, 0, 6.283); wctx.fill();
+      wctx.fillStyle = '#fff'; wctx.beginPath(); wctx.arc(ax, y - 122, 4, 0, 6.283); wctx.fill();
       R(ax - 40, y - 54, 16, 28, skin); R(ax + 24, y - 50, 16, 26, skinD);
       glowC(ax, y - 126, 34, 'rgba(255,90,255,0.85)', 'rgba(160,0,200,0)');
     } else {
@@ -1909,8 +1919,9 @@
       const off = ((time * (sawT > 0 ? 90 : 18)) % 10);
       for (let i = 0; i < 11; i++) { const cy = y - 200 + i * 10 + off; if (cy < y - 100 && cy > y - 192) { R(x - 17, cy, 6, 4, '#22222a'); R(x + 11, cy + 5, 6, 4, '#22222a'); } }
       R(x - 46, y - 56, 16, 40, skin); R(x + 30, y - 50, 16, 34, skinD); R(x - 6, y - 78, 12, 10, '#22222a');
-      if (sawT > 0) { ctx.fillStyle = 'rgba(255,230,160,0.85)'; for (let i = 0; i < 8; i++) ctx.fillRect(x - 24 + Math.random() * 48, y - 195 - Math.random() * 22, 3, 3); }
+      if (sawT > 0) { wctx.fillStyle = 'rgba(255,230,160,0.85)'; for (let i = 0; i < 8; i++) wctx.fillRect(x - 24 + Math.random() * 48, y - 195 - Math.random() * 22, 3, 3); }
     }
+    warpWeapon(ax);
     // ejected brass
     ctx.fillStyle = '#d9a73a';
     for (const c of casings) ctx.fillRect(Math.round(c.x), Math.round(c.y), 5, 3);
