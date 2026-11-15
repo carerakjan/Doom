@@ -204,13 +204,19 @@
   // ===================================================================
   // Monster sprites (all original designs; roles inspired by classic shooters)
   // ===================================================================
+  // Shared shape helpers bound to a 2D context: E ellipse, R rect, P polygon (flat x,y list), Ln line.
+  function painter(g) {
+    return {
+      E: (x, y, rx, ry, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 6.283); g.fill(); },
+      R: (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); },
+      P: (pts, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath(); g.fill(); },
+      Ln: (x1, y1, x2, y2, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); },
+    };
+  }
   // Redesigned silhouettes: distinct, original shapes for the signature monsters and bosses.
   function paintRedesign(type, f, g) {
     const bob = f === 1 ? 2 : 0, atk = f === 2;
-    const E = (x, y, rx, ry, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 6.283); g.fill(); };
-    const R = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
-    const P = (pts, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath(); g.fill(); };
-    const Ln = (x1, y1, x2, y2, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
+    const { E, R, P, Ln } = painter(g);
     const legA = f === 1 ? 7 : 11, legB = f === 1 ? 11 : 7;
     switch (type) {
       case 'imp': // winged gargoyle
@@ -339,10 +345,7 @@
   function paintMonster(type, f) {
     const c = mkCanvas(64, 64), g = c.getContext('2d');
     const bob = f === 1 ? 2 : 0, atk = f === 2;
-    const E = (x, y, rx, ry, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 6.283); g.fill(); };
-    const R = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
-    const P = (pts, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath(); g.fill(); };
-    const Ln = (x1, y1, x2, y2, col, w) => { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); };
+    const { E, R, P, Ln } = painter(g);
     const legA = f === 1 ? 7 : 11, legB = f === 1 ? 11 : 7;
     if (paintRedesign(type, f, g)) return c; // redesigned types are painted there; only the rest is below
     const human = (skin, cloth, pants, helm, gun, belt, bulk) => {
@@ -462,7 +465,7 @@
 
   function paintItem(kind) {
     const c = mkCanvas(64, 64), g = c.getContext('2d');
-    const R = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+    const { R, E } = painter(g);
     const glowT = (inner, outer) => { const grd = g.createRadialGradient(32, 32, 2, 32, 32, 30); grd.addColorStop(0, '#fff6c0'); grd.addColorStop(0.3, inner); grd.addColorStop(1, outer); g.fillStyle = grd; g.fillRect(0, 0, 64, 64); };
     let soft = false;
     if (kind === 'health') { R(10, 20, 44, 36, '#e8e8ee'); R(10, 20, 44, 4, '#fff'); R(10, 52, 44, 4, '#b0b0ba'); R(27, 26, 10, 24, '#d02a2a'); R(20, 33, 24, 10, '#d02a2a'); }
@@ -512,10 +515,9 @@
       g.fillStyle = '#ffe060'; g.beginPath(); g.moveTo(27, 30); g.quadraticCurveTo(32, 18, 36, 12); g.quadraticCurveTo(38, 20, 38, 30); g.closePath(); g.fill();
     }
     else if (kind === 'barrel') { R(18, 14, 28, 46, '#5a6a3a'); R(18, 14, 28, 4, '#7a8a50'); R(18, 56, 28, 4, '#3a4624'); R(18, 26, 28, 3, '#2a3018'); R(18, 44, 28, 3, '#2a3018'); R(28, 32, 8, 10, '#e0c020'); }
-    else if (kind === 'bones') { R(8, 50, 48, 6, '#d8d4c0'); E2(g, 20, 46, 8, 7, '#ece6d0'); R(22, 44, 3, 3, '#222'); R(28, 44, 3, 3, '#222'); R(34, 44, 20, 5, '#c8c4b0'); R(14, 56, 36, 4, '#b0ac98'); }
+    else if (kind === 'bones') { R(8, 50, 48, 6, '#d8d4c0'); E(20, 46, 8, 7, '#ece6d0'); R(22, 44, 3, 3, '#222'); R(28, 44, 3, 3, '#222'); R(34, 44, 20, 5, '#c8c4b0'); R(14, 56, 36, 4, '#b0ac98'); }
     return soft ? toTex(c) : finishTex(c);
   }
-  function E2(g, x, y, rx, ry, col) { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 6.283); g.fill(); }
   const ITEM_TEX = {};
   for (const k of ['health', 'bullets', 'shells', 'key', 'shotgun', 'rifle', 'exit_off', 'exit_on', 'fire_a', 'fire_b', 'fire_c', 'fire_d', 'rocket', 'ember', 'spark', 'warn', 'blood', 'gib', 'pool', 'brazier', 'brazier2', 'barrel', 'bones', 'fire_e', 'rockets', 'cells', 'fuel', 'w_minigun', 'w_rocket', 'w_plasma', 'w_flame', 'w_rail', 'w_destroyer']) ITEM_TEX[k] = paintItem(k);
 
