@@ -864,7 +864,7 @@
   let hurtFlash = 0, pickFlash = 0, lastHurt = -9, grinT = 0, fireT = 0, cooldown = 0, exitMsgT = 0;
   let shield = 0, shake = 0, switchT = 0, lightBoost = 0, bloodScreen = [], casings = [];
   let pballs = [], flameT = 0, railT = 0, railAng = 0, slowT = 0;
-  let toasts = [], keys = {}, mouseDown = false, muted = false, moving = false, sawT = 0, bosses = [];
+  let toasts = [], keys = {}, mouseDown = false, soundLvl = 3, moving = false, sawT = 0, bosses = [];
 
   function newPlayer() { return { x: 0, y: 0, angle: 0, hp: 100, weapon: 1, own: { chainsaw: true, pistol: true, shotgun: false, rifle: false, minigun: false, rocket: false, plasma: false, flame: false, rail: false, destroyer: false }, ammo: { bullets: 50, shells: 0, rockets: 0, cells: 0, fuel: 0 } }; }
   function snap() { return JSON.stringify({ hp: player.hp, weapon: player.weapon, own: player.own, ammo: player.ammo }); }
@@ -931,10 +931,12 @@
     if (!own[WEAPONS[p.weapon].id]) return null;
     return { level: o.level, diffIdx: o.diffIdx, player: { hp: Math.round(p.hp), weapon: p.weapon, own, ammo } };
   }
+  // volume steps cycled by M: 100% -> 66% -> 33% -> silent -> 100%; squared for a roughly even loudness drop
+  const SOUND_STEPS = [0, 0.33, 0.66, 1];
   const MOUSE_BASE = 0.0025, SENS_STEPS = [0.4, 0.5, 0.6, 0.8, 1, 1.25, 1.5, 2, 2.5, 3];
   let savedGame = loadSave(), bestLevel = 0, newGameArmT = -1, sens = 1;
-  { const o = readStore(); if (o) { muted = o.muted === true; bestLevel = inRange(o.best, 0, MAX_LEVEL) ? Math.floor(o.best) : 0; if (inRange(o.sens, SENS_STEPS[0], SENS_STEPS[SENS_STEPS.length - 1])) sens = o.sens; } }
-  function prefs() { return { muted, best: bestLevel, sens }; }
+  { const o = readStore(); if (o) { if (Number.isInteger(o.sound) && inRange(o.sound, 0, SOUND_STEPS.length - 1)) soundLvl = o.sound; else if (o.muted === true) soundLvl = 0; bestLevel = inRange(o.best, 0, MAX_LEVEL) ? Math.floor(o.best) : 0; if (inRange(o.sens, SENS_STEPS[0], SENS_STEPS[SENS_STEPS.length - 1])) sens = o.sens; } }
+  function prefs() { return { sound: soundLvl, best: bestLevel, sens }; }
   function saveProgress(lv, stats) {
     bestLevel = Math.max(bestLevel, lv);
     savedGame = { level: lv, diffIdx, player: stats };
@@ -964,6 +966,9 @@
   // ===================================================================
   // Audio: sound effects + original synthesized rock/metal music
   // ===================================================================
+  function soundGain() { return SOUND_STEPS[soundLvl] * SOUND_STEPS[soundLvl]; }
+  function soundLabel() { return soundLvl ? 'ЗВУК ' + Math.round(SOUND_STEPS[soundLvl] * 100) + '%' : 'ЗВУК ВИМКНЕНО'; }
+  function cycleSound() { soundLvl = (soundLvl + SOUND_STEPS.length - 1) % SOUND_STEPS.length; savePrefs(); toast(soundLabel(), 1.5); if (soundLvl) tone(440, 0.08, 'square', 0.05); }
   let AC = null;
   function audio() {
     if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = false; } }
@@ -971,23 +976,25 @@
     return AC || null;
   }
   function tone(f, dur, type, vol, slideTo) {
-    const a = audio(); if (!a || muted) return;
+    const a = audio(); if (!a || !soundLvl) return;
+    vol = (vol || 0.05) * soundGain();
     try {
       // ramps need an explicit start event on the timeline; assigning .value is not one in every browser
       const o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
       o.type = type || 'square'; o.frequency.setValueAtTime(f, t);
       if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
-      g.gain.setValueAtTime(vol || 0.05, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + dur);
     } catch (e) { /* ignore */ }
   }
   function noise(dur, vol, hp) {
-    const a = audio(); if (!a || muted) return;
+    const a = audio(); if (!a || !soundLvl) return;
+    vol = (vol || 0.15) * soundGain();
     try {
       const len = Math.floor(a.sampleRate * dur), b = a.createBuffer(1, len, a.sampleRate), d = b.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
       const s = a.createBufferSource(), g = a.createGain(), f = a.createBiquadFilter();
-      s.buffer = b; f.type = 'lowpass'; f.frequency.value = hp || 3000; g.gain.value = vol || 0.15;
+      s.buffer = b; f.type = 'lowpass'; f.frequency.value = hp || 3000; g.gain.value = vol;
       s.connect(f); f.connect(g); g.connect(a.destination); s.start();
     } catch (e) { /* ignore */ }
   }
@@ -1055,7 +1062,7 @@
     function tick() {
       if (!a) return;
       if (a.state === 'suspended') { try { a.resume(); } catch (e) { /* ignore */ } return; }
-      master.gain.setTargetAtTime(muted || mode === 'off' ? 0 : 0.4, a.currentTime, 0.08);
+      master.gain.setTargetAtTime(!soundLvl || mode === 'off' ? 0 : 0.4 * soundGain(), a.currentTime, 0.08);
       if (mode === 'off') { nextT = Math.max(nextT, a.currentTime + 0.1); return; }
       if (curMode !== mode) { curMode = mode; step = 0; nextT = a.currentTime + 0.1; }
       const sd = 60 / RF[curMode].bpm / 4;
@@ -1092,7 +1099,7 @@
     // (otherwise holding Space to shoot skips the death / level-complete screens instantly)
     if (e.repeat) return;
     if (e.code === 'KeyF') toggleFullscreen();
-    if (e.code === 'KeyM') { muted = !muted; savePrefs(); }
+    if (e.code === 'KeyM') cycleSound();
     if (state === 'play' && (e.code === 'BracketLeft' || e.code === 'Minus')) changeSens(-1);
     if (state === 'play' && (e.code === 'BracketRight' || e.code === 'Equal')) changeSens(1);
     if (state === 'play' && paused) {
@@ -2124,7 +2131,7 @@
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, VH);
       centerText('ПАУЗА', 140, 40, '#ffd23f');
       centerText('Клік, Enter, P або Esc: продовжити', 180, 14, '#ddd');
-      centerText('M звук · [ ] чутливість миші: ×' + sens + ' · F повний екран', 202, 12, '#9b94a8');
+      centerText('M ' + soundLabel().toLowerCase() + ' · [ ] чутливість миші: ×' + sens + ' · F повний екран', 202, 12, '#9b94a8');
     } else if (state === 'dead') {
       ctx.fillStyle = 'rgba(80,0,0,0.65)'; ctx.fillRect(0, 0, W, VH);
       centerText('ВИ ЗАГИНУЛИ', 150, 40, '#ff5544');
@@ -2150,6 +2157,7 @@
     centerText('30 рівнів · 27 монстрів · 10 видів зброї · 6 босів', 132, 15, '#e8e4ee');
     if (!player) player = newPlayer();
     const sv = player.hp; player.hp = 100; drawFace(W / 2 - 35, 140, 70); player.hp = sv;
+    ctx.font = '11px monospace'; ctx.fillStyle = '#9b94a8'; ctx.fillText(soundLabel() + ' (M)', 10, 18);
     if (bestLevel > 0) { ctx.font = '11px monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#9b94a8'; ctx.fillText(bestLevel >= MAX_LEVEL ? 'Рекорд: гру пройдено' : 'Рекорд: рівень ' + bestLevel, W - 10, 18); ctx.textAlign = 'left'; }
     centerText(savedGame ? 'СКЛАДНІСТЬ НОВОЇ ГРИ' : 'СКЛАДНІСТЬ', 228, 12, '#9b94a8');
     for (let i = 0; i < 3; i++) {
