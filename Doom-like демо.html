@@ -999,6 +999,9 @@
   addEventListener('keydown', e => {
     keys[e.code] = true; audio();
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+    // held keys stay in `keys` for movement/fire, but auto-repeat must not trigger one-shot actions
+    // (otherwise holding Space to shoot skips the death / level-complete screens instantly)
+    if (e.repeat) return;
     if (e.code === 'KeyM') muted = !muted;
     if (state === 'title') {
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') diffIdx = (diffIdx + 2) % 3;
