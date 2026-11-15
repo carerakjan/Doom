@@ -885,7 +885,15 @@
   function objectiveText() {
     if (L.objective === 'boss') return exitOpen ? 'ДІЙДІТЬ ДО ВИХОДУ' : 'ПЕРЕМОЖІТЬ БОСА: ' + (bosses[0] ? bosses[0].name : '');
     if (L.objective === 'key') return hasKey ? 'ДІЙДІТЬ ДО ВИХОДУ' : 'ЗНАЙДІТЬ КЛЮЧ-КРИСТАЛ';
-    return 'ВБИЙТЕ ВСІХ ВОРОГІВ';
+    const left = hintTargets().length;
+    return left ? 'ВБИЙТЕ ВСІХ ВОРОГІВ (ЛИШИЛОСЬ ' + left + ')' : 'ВБИЙТЕ ВСІХ ВОРОГІВ';
+  }
+  // on "kill all" levels, the last few enemies are revealed on the minimap and by an arrow
+  const HINT_LEFT = 3;
+  function hintTargets() {
+    if (L.objective === 'boss' || L.objective === 'key') return [];
+    const alive = enemies.filter(e => !e.dead);
+    return alive.length <= HINT_LEFT ? alive : [];
   }
   function newGame() { player = newPlayer(); startLevel(1, false); }
 
@@ -1945,6 +1953,10 @@
     const sn = (x, y) => seen[Math.floor(y) * size + Math.floor(x)];
     ctx.fillStyle = '#ff5544';
     for (const e of enemies) if (!e.dead && sn(e.x, e.y)) ctx.fillRect(ox + e.x * ms - 1, oy + e.y * ms - 1, 3, 3);
+    if (Math.sin(time * 8) > -0.3) {
+      ctx.fillStyle = '#ff9a3c';
+      for (const e of hintTargets()) ctx.fillRect(ox + e.x * ms - 2, oy + e.y * ms - 2, 5, 5);
+    }
     if (keyItem && !keyItem.taken && sn(keyItem.x, keyItem.y)) { ctx.fillStyle = '#7ae8ff'; ctx.fillRect(ox + keyItem.x * ms - 2, oy + keyItem.y * ms - 2, 4, 4); }
     if (sn(L.exit.x, L.exit.y)) { ctx.fillStyle = exitOpen ? '#3ddc84' : '#666'; ctx.fillRect(ox + L.exit.x * ms - 2, oy + L.exit.y * ms - 2, 4, 4); }
     ctx.fillStyle = '#ffd23f'; ctx.fillRect(ox + player.x * ms - 2, oy + player.y * ms - 2, 4, 4);
@@ -1987,6 +1999,26 @@
       ctx.fillStyle = '#e03a2a'; ctx.fillRect(bx, 42, bw * hp / mx, 12);
       ctx.font = 'bold 10px monospace'; textShadow(bb[0].name, W / 2, 38, '#ffd0c0');
     }
+    ctx.textAlign = 'left';
+    if (state === 'play') drawEnemyArrow();
+  }
+
+  // arrow around the crosshair pointing at the nearest remaining enemy (hidden when it is already on screen)
+  function drawEnemyArrow() {
+    let best = null, bd = Infinity;
+    for (const e of hintTargets()) { const d = Math.hypot(e.x - player.x, e.y - player.y); if (d < bd) { bd = d; best = e; } }
+    if (!best) return;
+    let rel = Math.atan2(best.y - player.y, best.x - player.x) - player.angle;
+    rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+    if (Math.abs(rel) < 0.5 && los(player.x, player.y, best.x, best.y)) return;
+    const R = 58, cx = W / 2 + Math.sin(rel) * R, cy = VH / 2 - Math.cos(rel) * R;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(rel);
+    ctx.globalAlpha = 0.6 + 0.3 * Math.sin(time * 6);
+    ctx.fillStyle = '#ff9a3c'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(7, 5); ctx.lineTo(0, 1); ctx.lineTo(-7, 5); ctx.closePath(); ctx.stroke(); ctx.fill();
+    ctx.restore();
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+    textShadow(Math.round(bd) + 'м', W / 2 + Math.sin(rel) * (R + 16), VH / 2 - Math.cos(rel) * (R + 16) + 4, '#ffbe7a');
     ctx.textAlign = 'left';
   }
 
