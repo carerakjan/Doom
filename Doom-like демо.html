@@ -876,6 +876,7 @@
     flowCell = -1; hurtFlash = 0; pickFlash = 0; cooldown = 0; fireT = 0; toasts = []; shake = 0; switchT = 0;
     shield = 5;
     snapshot = snap();
+    saveProgress(n, JSON.parse(snapshot));
     state = 'play'; paused = false;
     toast('РІВЕНЬ ' + n + ': ' + THEMES[L.theme].name.toUpperCase(), 3);
     toast(objectiveText(), 4);
@@ -896,6 +897,51 @@
     return alive.length <= HINT_LEFT ? alive : [];
   }
   function newGame() { player = newPlayer(); startLevel(1, false); }
+
+  // ===================================================================
+  // Save / load (localStorage). Levels are generated from (level, difficulty),
+  // so the player's stats at the start of a level are enough to resume it.
+  // ===================================================================
+  const SAVE_KEY = 'doomlike.save.v1';
+  function readStore() {
+    try { const o = JSON.parse(localStorage.getItem(SAVE_KEY)); return o && typeof o === 'object' && o.v === 1 ? o : null; } catch (err) { return null; }
+  }
+  function writeStore(o) {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(Object.assign({}, o, { v: 1 }))); } catch (err) { /* private mode / storage blocked: play without saves */ }
+  }
+  const inRange = (x, lo, hi) => typeof x === 'number' && isFinite(x) && x >= lo && x <= hi;
+  // validated { level, diffIdx, player } or null
+  function loadSave() {
+    const o = readStore(); if (!o) return null;
+    const p = o.player;
+    if (!Number.isInteger(o.level) || !inRange(o.level, 1, MAX_LEVEL) || !Number.isInteger(o.diffIdx) || !inRange(o.diffIdx, 0, DIFFS.length - 1)) return null;
+    if (!p || typeof p !== 'object' || !inRange(p.hp, 1, 999) || !Number.isInteger(p.weapon) || !inRange(p.weapon, 0, WEAPONS.length - 1) || !p.own || !p.ammo) return null;
+    const base = newPlayer(), own = {}, ammo = {};
+    for (const k in base.own) own[k] = p.own[k] === true || base.own[k];
+    for (const k in base.ammo) ammo[k] = inRange(p.ammo[k], 0, 9999) ? Math.floor(p.ammo[k]) : base.ammo[k];
+    if (!own[WEAPONS[p.weapon].id]) return null;
+    return { level: o.level, diffIdx: o.diffIdx, player: { hp: Math.round(p.hp), weapon: p.weapon, own, ammo } };
+  }
+  let savedGame = loadSave(), bestLevel = 0, newGameArmT = -1;
+  { const o = readStore(); if (o) { muted = o.muted === true; bestLevel = inRange(o.best, 0, MAX_LEVEL) ? Math.floor(o.best) : 0; } }
+  function saveProgress(lv, stats) {
+    bestLevel = Math.max(bestLevel, lv);
+    savedGame = { level: lv, diffIdx, player: stats };
+    writeStore({ level: lv, diffIdx, player: stats, muted, best: bestLevel });
+  }
+  function clearProgress() { savedGame = null; writeStore({ muted, best: bestLevel }); }
+  function savePrefs() { writeStore(Object.assign(readStore() || {}, { muted, best: bestLevel })); }
+  function continueGame() {
+    const s = savedGame; if (!s) { newGame(); return; }
+    diffIdx = s.diffIdx; player = newPlayer(); snapshot = JSON.stringify(s.player);
+    startLevel(s.level, true);
+  }
+  // with a save present, "new game" needs a second press within 3 s so progress isn't wiped by accident
+  function requestNewGame() {
+    if (!savedGame || time < newGameArmT) { newGameArmT = -1; newGame(); return; }
+    newGameArmT = time + 3; tone(330, 0.08, 'square', 0.04, 220);
+  }
+  function titleStart() { if (savedGame) continueGame(); else newGame(); }
 
   // ===================================================================
   // Audio: sound effects + original synthesized rock/metal music
@@ -1006,6 +1052,7 @@
   // Input
   // ===================================================================
   const BTN = [0, 1, 2].map(i => ({ x: W / 2 - 215 + i * 150, y: 236, w: 136, h: 34 }));
+  const CONT_BTN = { x: W / 2 - 215, y: 274, w: 286, h: 28 }, NEW_BTN = { x: W / 2 + 79, y: 274, w: 136, h: 28 };
   function canvasPos(e) { const r = canvas.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; }
 
   addEventListener('keydown', e => {
@@ -1014,7 +1061,7 @@
     // held keys stay in `keys` for movement/fire, but auto-repeat must not trigger one-shot actions
     // (otherwise holding Space to shoot skips the death / level-complete screens instantly)
     if (e.repeat) return;
-    if (e.code === 'KeyM') muted = !muted;
+    if (e.code === 'KeyM') { muted = !muted; savePrefs(); }
     if (state === 'play' && paused) {
       // Esc can also arrive right after the browser released pointer lock (which already paused us): don't undo that
       if (e.code === 'KeyP' || e.code === 'Enter' || (e.code === 'Escape' && performance.now() - pausedAt > 300)) setPaused(false);
@@ -1025,7 +1072,8 @@
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') diffIdx = (diffIdx + 2) % 3;
       if (e.code === 'ArrowRight' || e.code === 'KeyD') diffIdx = (diffIdx + 1) % 3;
       if (e.code === 'Digit1') diffIdx = 0; if (e.code === 'Digit2') diffIdx = 1; if (e.code === 'Digit3') diffIdx = 2;
-      if (e.code === 'Enter' || e.code === 'Space') advanceMenu();
+      if (e.code === 'Enter' || e.code === 'Space') titleStart();
+      if (e.code === 'KeyN') requestNewGame();
       return;
     }
     if (e.code === 'Enter' || e.code === 'Space') advanceMenu();
@@ -1053,8 +1101,13 @@
     mouseDown = true;
     if (state === 'title') {
       const p = canvasPos(e);
-      for (let i = 0; i < 3; i++) { const b = BTN[i]; if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) { diffIdx = i; e.preventDefault(); return; } }
-      newGame(); e.preventDefault(); return;
+      const inBtn = b => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+      for (let i = 0; i < 3; i++) if (inBtn(BTN[i])) { diffIdx = i; e.preventDefault(); return; }
+      // with a save, only the two buttons start a game; without one, a click anywhere starts as before
+      if (!savedGame) newGame();
+      else if (inBtn(CONT_BTN)) continueGame();
+      else if (inBtn(NEW_BTN)) requestNewGame();
+      e.preventDefault(); return;
     }
     if (!advanceMenu()) lockPointer();
     e.preventDefault();
@@ -1075,16 +1128,17 @@
   canvas.addEventListener('contextmenu', e => e.preventDefault());
 
   function advanceMenu() {
-    if (state === 'title') { newGame(); return true; }
+    if (state === 'title') { titleStart(); return true; }
     if (state === 'dead') { startLevel(level, true); return true; }
     if (state === 'complete') {
       if (level >= MAX_LEVEL) { state = 'victory'; return true; }
-      player.hp = Math.min(100, player.hp + Math.round(25 * DIFFS[diffIdx].heal));
+      player.hp = Math.min(100, player.hp + completeHeal());
       startLevel(level + 1, false); return true;
     }
     if (state === 'victory') { state = 'title'; return true; }
     return false;
   }
+  function completeHeal() { return Math.round(25 * DIFFS[diffIdx].heal); }
   function selectWeapon(i) {
     const w = WEAPONS[i];
     if (!player.own[w.id]) { toast('ЦІЄЇ ЗБРОЇ ЩЕ НЕМАЄ'); return; }
@@ -1567,7 +1621,12 @@
       : aliveCount === 0;
     if (exitOpen && !wasOpen) { toast('ВИХІД ВІДКРИТО!', 3); tone(440, 0.4, 'triangle', 0.08, 880); }
     const de = Math.hypot(L.exit.x - player.x, L.exit.y - player.y);
-    if (de < 0.7 && exitOpen) { state = 'complete'; tone(523, 0.5, 'triangle', 0.1, 1046); }
+    if (de < 0.7 && exitOpen) {
+      state = 'complete'; tone(523, 0.5, 'triangle', 0.1, 1046);
+      // save the next level right away, so closing the tab on this screen doesn't lose the level
+      if (level >= MAX_LEVEL) { bestLevel = MAX_LEVEL; clearProgress(); }
+      else { const s = JSON.parse(snap()); s.hp = Math.min(100, s.hp + completeHeal()); saveProgress(level + 1, s); }
+    }
     else if (de < 1.6 && !exitOpen && exitMsgT <= 0) { toast(objectiveText()); exitMsgT = 3; }
   }
 
@@ -2053,19 +2112,31 @@
     centerText('30 рівнів · 27 монстрів · 10 видів зброї · 6 босів', 132, 15, '#e8e4ee');
     if (!player) player = newPlayer();
     const sv = player.hp; player.hp = 100; drawFace(W / 2 - 35, 140, 70); player.hp = sv;
-    centerText('СКЛАДНІСТЬ', 228, 12, '#9b94a8');
+    if (bestLevel > 0) { ctx.font = '11px monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#9b94a8'; ctx.fillText(bestLevel >= MAX_LEVEL ? 'Рекорд: гру пройдено' : 'Рекорд: рівень ' + bestLevel, W - 10, 18); ctx.textAlign = 'left'; }
+    centerText(savedGame ? 'СКЛАДНІСТЬ НОВОЇ ГРИ' : 'СКЛАДНІСТЬ', 228, 12, '#9b94a8');
     for (let i = 0; i < 3; i++) {
       const b = BTN[i], on = i === diffIdx;
       ctx.fillStyle = on ? (i === 2 ? '#8a1e14' : i === 1 ? '#b88a1e' : '#2a7a4a') : '#1c1a22'; ctx.fillRect(b.x, b.y, b.w, b.h);
       ctx.strokeStyle = on ? '#fff' : '#4a4552'; ctx.lineWidth = on ? 2 : 1; ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1);
       ctx.font = 'bold 15px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = on ? '#fff' : '#8a8494'; ctx.fillText(DIFFS[i].name, b.x + b.w / 2, b.y + 22); ctx.textAlign = 'left';
     }
-    centerText('Клік повз кнопки або Enter: почати', 296, 16, '#ffd23f');
+    if (savedGame) {
+      const armed = time < newGameArmT;
+      const btn = (b, fill, stroke, label, col) => {
+        ctx.fillStyle = fill; ctx.fillRect(b.x, b.y, b.w, b.h);
+        ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1);
+        ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = col; ctx.fillText(label, b.x + b.w / 2, b.y + 18); ctx.textAlign = 'left';
+      };
+      btn(CONT_BTN, '#3a2a10', '#ffd23f', '▶ ПРОДОВЖИТИ: РІВЕНЬ ' + savedGame.level + ' · ' + DIFFS[savedGame.diffIdx].name, '#ffd23f');
+      btn(NEW_BTN, armed ? '#5a140e' : '#1c1a22', armed ? '#ff6a50' : '#4a4552', armed ? 'ТОЧНО? ЩЕ РАЗ' : 'НОВА ГРА (N)', armed ? '#fff' : '#c8c2d2');
+      ctx.font = '10px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = armed ? '#ff8a70' : '#7a7486';
+      ctx.fillText(armed ? 'Нова гра перезапише збережений прогрес' : 'Enter: продовжити · N: нова гра', W / 2, 316); ctx.textAlign = 'left';
+    } else centerText('Клік повз кнопки або Enter: почати', 296, 16, '#ffd23f');
     ctx.font = '11px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#9b94a8';
-    ctx.fillText('WASD рух · миша або ←→ поворот · клік або Пробіл вогонь', W / 2, 322);
-    ctx.fillText('1-9, 0 зброя · Q/E або колесо перемикання · R рестарт · M звук · Esc/P пауза', W / 2, 338);
-    ctx.fillText('Вбийте всіх або знайдіть ключ-кристал, потім дійдіть до порталу', W / 2, 354);
-    ctx.fillText('Боси: рівні 5, 15, 25 (середні) та 10, 20, 30 (головні). На старті діє захисне поле', W / 2, 370);
+    ctx.fillText('WASD рух · миша або ←→ поворот · клік або Пробіл вогонь', W / 2, 330);
+    ctx.fillText('1-9, 0 зброя · Q/E або колесо перемикання · R рестарт · M звук · Esc/P пауза', W / 2, 344);
+    ctx.fillText('Вбийте всіх або знайдіть ключ-кристал, потім дійдіть до порталу', W / 2, 358);
+    ctx.fillText('Боси: рівні 5, 15, 25 (середні) та 10, 20, 30 (головні). На старті діє захисне поле', W / 2, 372);
     ctx.fillText('Патрони обмежені, бензопила без патронів', W / 2, 386);
     ctx.textAlign = 'left';
   }
