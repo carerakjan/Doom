@@ -1090,17 +1090,22 @@ function update(dt) {
     mx -= rx;
     my -= ry;
   }
+  const ts = touchStick(); // analog: a partly pushed stick walks slower
+  if (ts) {
+    mx += dx * ts.f + rx * ts.s;
+    my += dy * ts.f + ry * ts.s;
+  }
   const len = Math.hypot(mx, my);
   moving = len > 0;
   if (len > 0) {
-    const sp = (3.3 * (slowT > 0 ? 0.55 : 1) * dt) / len,
+    const sp = (3.3 * (slowT > 0 ? 0.55 : 1) * dt) / Math.max(1, len),
       nx = player.x + mx * sp,
       ny = player.y + my * sp,
       r = 0.22;
     if (walkable(nx, player.y, r) && !playerBlocked(player.x, player.y, nx, player.y)) player.x = nx;
     if (walkable(player.x, ny, r) && !playerBlocked(player.x, player.y, player.x, ny)) player.y = ny;
   }
-  if (keys.Space || keys.ControlLeft || keys.ControlRight || mouseDown) fireWeapon();
+  if (keys.Space || keys.ControlLeft || keys.ControlRight || mouseDown || touchFiring()) fireWeapon();
 
   const pcx = Math.floor(player.x),
     pcy = Math.floor(player.y);

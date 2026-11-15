@@ -38,6 +38,7 @@
   .keys li { min-width: 0; }
   kbd { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; color: var(--fg); font: 12px ui-monospace, Menlo, monospace; }
   [hidden] { display: none !important; }
+  @media (pointer: coarse) { .keys { display: none; } }
   h1 { margin: 0; font: 600 13px/1 "Inter", system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
 </style>
 </head>
@@ -63,6 +64,7 @@
 <script src="js/game.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/input.js"></script>
+<script src="js/touch.js"></script>
 <script src="js/render.js"></script>
 <script src="js/main.js"></script>
 

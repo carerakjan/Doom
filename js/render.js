@@ -1216,7 +1216,7 @@ function drawScreens() {
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(0, 0, W, VH);
     centerText('ПАУЗА', 140, 40, '#ffd23f');
-    centerText('Клік, Enter, P або Esc: продовжити', 180, 14, '#ddd');
+    centerText(touchOn ? 'Торкніться екрана: продовжити' : 'Клік, Enter, P або Esc: продовжити', 180, 14, '#ddd');
     centerText(
       'M ' + soundLabel().toLowerCase() + ' · [ ] чутливість миші: ×' + sens + ' · F повний екран',
       202,
@@ -1361,5 +1361,6 @@ function render() {
   drawMinimap();
   drawOverlays();
   drawHud();
+  drawTouch();
   drawScreens();
 }

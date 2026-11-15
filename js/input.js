@@ -106,24 +106,26 @@ canvas.addEventListener('mousedown', (e) => {
   }
   mouseDown = true;
   if (state === 'title') {
-    const p = canvasPos(e);
-    const inBtn = (b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
-    for (let i = 0; i < 3; i++)
-      if (inBtn(BTN[i])) {
-        diffIdx = i;
-        e.preventDefault();
-        return;
-      }
-    // with a save, only the two buttons start a game; without one, a click anywhere starts as before
-    if (!savedGame) newGame();
-    else if (inBtn(CONT_BTN)) continueGame();
-    else if (inBtn(NEW_BTN)) requestNewGame();
+    titleClick(canvasPos(e));
     e.preventDefault();
     return;
   }
   if (!advanceMenu()) lockPointer();
   e.preventDefault();
 });
+// title screen click / tap at canvas point p (also used by touch.js)
+function titleClick(p) {
+  const inBtn = (b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+  for (let i = 0; i < 3; i++)
+    if (inBtn(BTN[i])) {
+      diffIdx = i;
+      return;
+    }
+  // with a save, only the two buttons start a game; without one, a click anywhere starts as before
+  if (!savedGame) newGame();
+  else if (inBtn(CONT_BTN)) continueGame();
+  else if (inBtn(NEW_BTN)) requestNewGame();
+}
 addEventListener('mouseup', () => {
   mouseDown = false;
 });
@@ -131,6 +133,7 @@ addEventListener('mouseup', () => {
 function releaseInput() {
   for (const k in keys) keys[k] = false;
   mouseDown = false;
+  touchRelease();
 }
 function setPaused(v) {
   paused = v;
