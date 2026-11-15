@@ -27,6 +27,8 @@
     image-rendering: pixelated; background: #000;
     border: 2px solid var(--line); cursor: crosshair; display: block; touch-action: none;
   }
+  canvas:fullscreen { width: 100vw; height: 100vh; max-width: none; aspect-ratio: auto; object-fit: contain; border: 0; }
+  canvas:-webkit-full-screen { width: 100vw; height: 100vh; max-width: none; aspect-ratio: auto; object-fit: contain; border: 0; }
   .keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; color: var(--muted); max-width: 960px; margin: 0; padding: 0; list-style: none; }
   .keys li { min-width: 0; }
   kbd { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; color: var(--fg); font: 12px ui-monospace, Menlo, monospace; }
@@ -39,7 +41,7 @@
   <li><kbd>←</kbd><kbd>→</kbd> або миша: поворот</li>
   <li>клік або <kbd>Пробіл</kbd>: вогонь</li>
   <li><kbd>1</kbd>–<kbd>4</kbd> або <kbd>Q</kbd><kbd>E</kbd>: зброя</li>
-  <li><kbd>R</kbd> рестарт рівня · <kbd>M</kbd> звук · <kbd>[</kbd>/<kbd>]</kbd> чутливість миші · <kbd>Esc</kbd>/<kbd>P</kbd> пауза</li>
+  <li><kbd>R</kbd> рестарт рівня · <kbd>M</kbd> звук · <kbd>[</kbd>/<kbd>]</kbd> чутливість миші · <kbd>Esc</kbd>/<kbd>P</kbd> пауза · <kbd>F</kbd> повний екран</li>
 </ul>
 <script>
 // Doom-like: raycasting FPS. Original code, original art and original synthesized music.
@@ -1069,7 +1071,19 @@
   // ===================================================================
   const BTN = [0, 1, 2].map(i => ({ x: W / 2 - 215 + i * 150, y: 236, w: 136, h: 34 }));
   const CONT_BTN = { x: W / 2 - 215, y: 274, w: 286, h: 28 }, NEW_BTN = { x: W / 2 + 79, y: 274, w: 136, h: 28 };
-  function canvasPos(e) { const r = canvas.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; }
+  function canvasPos(e) {
+    // the drawn image may be letterboxed inside the element (object-fit: contain in fullscreen)
+    const r = canvas.getBoundingClientRect(), k = Math.min(r.width / W, r.height / H);
+    const ox = r.left + (r.width - W * k) / 2, oy = r.top + (r.height - H * k) / 2;
+    return { x: (e.clientX - ox) / k, y: (e.clientY - oy) / k };
+  }
+  function fullscreenEl() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+  function toggleFullscreen() {
+    try {
+      if (fullscreenEl()) { const x = document.exitFullscreen || document.webkitExitFullscreen; if (x) { const r = x.call(document); if (r && r.catch) r.catch(() => {}); } }
+      else { const q = canvas.requestFullscreen || canvas.webkitRequestFullscreen; if (q) { const r = q.call(canvas); if (r && r.catch) r.catch(() => {}); } }
+    } catch (err) { /* fullscreen not allowed here (e.g. inside an iframe) */ }
+  }
 
   addEventListener('keydown', e => {
     keys[e.code] = true; audio();
@@ -1077,6 +1091,7 @@
     // held keys stay in `keys` for movement/fire, but auto-repeat must not trigger one-shot actions
     // (otherwise holding Space to shoot skips the death / level-complete screens instantly)
     if (e.repeat) return;
+    if (e.code === 'KeyF') toggleFullscreen();
     if (e.code === 'KeyM') { muted = !muted; savePrefs(); }
     if (state === 'play' && (e.code === 'BracketLeft' || e.code === 'Minus')) changeSens(-1);
     if (state === 'play' && (e.code === 'BracketRight' || e.code === 'Equal')) changeSens(1);
@@ -1140,6 +1155,8 @@
   // focus loss / hidden tab / losing pointer lock (Esc in the browser) all pause a running game
   addEventListener('blur', () => { releaseInput(); if (state === 'play') setPaused(true); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) { releaseInput(); if (state === 'play') setPaused(true); } });
+  const onFsChange = () => { if (!fullscreenEl() && state === 'play' && !paused) setPaused(true); };
+  document.addEventListener('fullscreenchange', onFsChange); document.addEventListener('webkitfullscreenchange', onFsChange);
   document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== canvas && state === 'play' && !paused) setPaused(true); });
   addEventListener('mousemove', e => { if (document.pointerLockElement === canvas && state === 'play' && !paused) player.angle += e.movementX * MOUSE_BASE * sens; });
   canvas.addEventListener('wheel', e => { if (state === 'play' && !paused) { cycleWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
@@ -2107,7 +2124,7 @@
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, VH);
       centerText('ПАУЗА', 140, 40, '#ffd23f');
       centerText('Клік, Enter, P або Esc: продовжити', 180, 14, '#ddd');
-      centerText('M звук · [ ] чутливість миші: ×' + sens, 202, 12, '#9b94a8');
+      centerText('M звук · [ ] чутливість миші: ×' + sens + ' · F повний екран', 202, 12, '#9b94a8');
     } else if (state === 'dead') {
       ctx.fillStyle = 'rgba(80,0,0,0.65)'; ctx.fillRect(0, 0, W, VH);
       centerText('ВИ ЗАГИНУЛИ', 150, 40, '#ff5544');
@@ -2155,7 +2172,7 @@
     } else centerText('Клік повз кнопки або Enter: почати', 296, 16, '#ffd23f');
     ctx.font = '11px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#9b94a8';
     ctx.fillText('WASD рух · миша або ←→ поворот · клік або Пробіл вогонь', W / 2, 330);
-    ctx.fillText('1-9, 0 зброя · Q/E або колесо перемикання · R рестарт · M звук · Esc/P пауза', W / 2, 344);
+    ctx.fillText('1-9, 0 зброя · Q/E або колесо перемикання · R рестарт · M звук · Esc/P пауза · F повний екран', W / 2, 344);
     ctx.fillText('Вбийте всіх або знайдіть ключ-кристал, потім дійдіть до порталу', W / 2, 358);
     ctx.fillText('Боси: рівні 5, 15, 25 (середні) та 10, 20, 30 (головні). На старті діє захисне поле', W / 2, 372);
     ctx.fillText('Патрони обмежені, бензопила без патронів', W / 2, 386);
