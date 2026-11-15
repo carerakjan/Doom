@@ -1037,6 +1037,10 @@
     e.preventDefault();
   });
   addEventListener('mouseup', () => { mouseDown = false; });
+  // keyup / mouseup never arrive while the window is unfocused, so drop all held input on focus loss
+  function releaseInput() { for (const k in keys) keys[k] = false; mouseDown = false; }
+  addEventListener('blur', releaseInput);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) releaseInput(); });
   addEventListener('mousemove', e => { if (document.pointerLockElement === canvas && state === 'play') player.angle += e.movementX * 0.0025; });
   canvas.addEventListener('wheel', e => { if (state === 'play') { cycleWeapon(e.deltaY > 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
   canvas.addEventListener('contextmenu', e => e.preventDefault());
