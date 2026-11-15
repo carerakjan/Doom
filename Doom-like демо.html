@@ -47,9 +47,13 @@
 <ul class="keys">
   <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> рух</li>
   <li><kbd>←</kbd><kbd>→</kbd> або миша: поворот</li>
-  <li>клік або <kbd>Пробіл</kbd>: вогонь</li>
-  <li><kbd>1</kbd>–<kbd>4</kbd> або <kbd>Q</kbd><kbd>E</kbd>: зброя</li>
-  <li><kbd>R</kbd> рестарт рівня · <kbd>M</kbd> звук · <kbd>[</kbd>/<kbd>]</kbd> чутливість миші · <kbd>Esc</kbd>/<kbd>P</kbd> пауза · <kbd>F</kbd> повний екран</li>
+  <li>клік, <kbd>Пробіл</kbd> або <kbd>Ctrl</kbd>: вогонь</li>
+  <li><kbd>1</kbd>–<kbd>9</kbd>, <kbd>0</kbd>, <kbd>Q</kbd><kbd>E</kbd> або колесо миші: зброя</li>
+  <li><kbd>R</kbd> рестарт рівня</li>
+  <li><kbd>Esc</kbd>/<kbd>P</kbd> пауза</li>
+  <li><kbd>M</kbd> гучність</li>
+  <li><kbd>[</kbd><kbd>]</kbd> чутливість миші</li>
+  <li><kbd>F</kbd> повний екран</li>
 </ul>
 <script>
 // Doom-like: raycasting FPS. Original code, original art and original synthesized music.
@@ -2190,8 +2194,8 @@
       ctx.fillText(armed ? 'Нова гра перезапише збережений прогрес' : 'Enter: продовжити · N: нова гра', W / 2, 316); ctx.textAlign = 'left';
     } else centerText('Клік повз кнопки або Enter: почати', 296, 16, '#ffd23f');
     ctx.font = '11px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#9b94a8';
-    ctx.fillText('WASD рух · миша або ←→ поворот · клік або Пробіл вогонь', W / 2, 330);
-    ctx.fillText('1-9, 0 зброя · Q/E або колесо перемикання · R рестарт · M звук · Esc/P пауза · F повний екран', W / 2, 344);
+    ctx.fillText('WASD рух · миша або ←→ поворот · клік, Пробіл або Ctrl вогонь', W / 2, 330);
+    ctx.fillText('1-9, 0 зброя · Q/E або колесо перемикання · R рестарт · Esc/P пауза · M гучність · F екран', W / 2, 344);
     ctx.fillText('Вбийте всіх або знайдіть ключ-кристал, потім дійдіть до порталу', W / 2, 358);
     ctx.fillText('Боси: рівні 5, 15, 25 (середні) та 10, 20, 30 (головні). На старті діє захисне поле', W / 2, 372);
     ctx.fillText('Патрони обмежені, бензопила без патронів', W / 2, 386);
